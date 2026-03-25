@@ -1,60 +1,82 @@
-# vox-pop
+<div align="center">
 
-**Public opinion for LLMs.** Search HackerNews, Reddit, 4chan, Stack Exchange, and Telegram for what people *actually* think. Zero API keys.
+<br>
 
-Your LLM knows what textbooks say. Vox Pop tells it what people actually think.
+```
+ ██╗   ██╗ ██████╗ ██╗  ██╗      ██████╗  ██████╗ ██████╗
+ ██║   ██║██╔═══██╗╚██╗██╔╝      ██╔══██╗██╔═══██╗██╔══██╗
+ ██║   ██║██║   ██║ ╚███╔╝ █████╗██████╔╝██║   ██║██████╔╝
+ ╚██╗ ██╔╝██║   ██║ ██╔██╗ ╚════╝██╔═══╝ ██║   ██║██╔═══╝
+  ╚████╔╝ ╚██████╔╝██╔╝ ██╗     ██║     ╚██████╔╝██║
+   ╚═══╝   ╚═════╝ ╚═╝  ╚═╝     ╚═╝      ╚═════╝ ╚═╝
+```
+
+### Your LLM knows what textbooks say.<br>This tells it what people *actually* think.
+
+**HackerNews** &bull; **Reddit** &bull; **4chan** &bull; **Stack Exchange** &bull; **Telegram**
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Python 3.10+](https://img.shields.io/badge/Python-3.10+-3776AB.svg)](https://python.org)
+[![MCP Compatible](https://img.shields.io/badge/MCP-Compatible-8A2BE2.svg)](https://modelcontextprotocol.io)
+[![Zero API Keys](https://img.shields.io/badge/API_Keys-Zero-brightgreen.svg)](#)
+
+[Install](#install) &bull; [Quick Start](#quick-start) &bull; [Platforms](#platforms) &bull; [MCP Server](#mcp-server) &bull; [Claude Code Plugin](#claude-code-plugin) &bull; [Roadmap](#roadmap)
+
+</div>
 
 ---
 
-## The Problem
+<br>
+
+## Why?
+
+<table>
+<tr>
+<td width="50%">
+
+**Without vox-pop**
 
 ```
-User: "How do I debloat my face?"
+> How do I debloat my face?
 
-Without vox-pop:
-  Generic clinical answer: lymphatic drainage, reduce sodium,
-  cold compress, drink water, sleep elevated...
-  (correct but soulless — same as every health blog)
+Lymphatic drainage, reduce sodium,
+cold compress, drink water,
+sleep elevated...
+
+(correct but soulless — same answer
+ as every health blog since 2015)
 ```
 
+</td>
+<td width="50%">
+
+**With vox-pop**
+
 ```
-With vox-pop:
-  ★ Searched 4 platforms: Reddit r/SkincareAddiction (23 threads),
-    4chan /fit/ (8 threads), Stack Exchange Fitness (5 threads)
+★ Searched: Reddit, 4chan /fit/, SE Fitness
 
-  Consensus (70%+ of threads):
-    → Reduce sodium + drink 3L water/day (fastest visible result, 2-3 days)
-    → Sleep elevated on back (multiple before/after posts)
+Consensus (70%+ of threads):
+ → Reduce sodium + 3L water/day
+ → Sleep elevated on back
 
-  Controversial:
-    → Gua sha: loved on Reddit, mocked on /fit/ as placebo
-    → Mewing: looksmax-adjacent communities endorse, no clinical evidence
+Controversial:
+ → Gua sha: loved on Reddit,
+   mocked on /fit/ as placebo
 
-  What actually worked (high-engagement reports):
-    → "Cut dairy for 2 weeks — face visibly deflated" (847 upvotes, r/SCA)
-    → "Minoxidil bloat is real, went away month 3" (/fit/, recurring topic)
+What actually worked:
+ → "Cut dairy for 2 weeks — face
+    visibly deflated" (847↑ r/SCA)
+ → "Minox bloat is real, went away
+    month 3" (/fit/, recurring)
 
-  ⚠ Some suggestions involve unvetted supplements.
-    Cross-reference with medical sources.
+⚠ Some suggestions are unvetted.
 ```
 
-**That** is the difference. Not "I searched Reddit." It's "my LLM understands what actual humans have experienced."
+</td>
+</tr>
+</table>
 
----
-
-## Platforms
-
-| Platform | Method | Auth | Tier |
-|---|---|---|---|
-| **HackerNews** | [Algolia API](https://hn.algolia.com/api) | None | 1 — stable |
-| **Reddit** | [Pullpush](https://pullpush.io) → [Arctic Shift](https://arctic-shift.photon-reddit.com) → [Redlib](https://github.com/redlib-org/redlib) | None | 1 — fallback chain |
-| **4chan** | [Official API](https://github.com/4chan/4chan-API) | None | 1 — stable since 2012 |
-| **Stack Exchange** | [Official API](https://api.stackexchange.com/docs) (180+ sites) | None (300 req/day) | 1 — stable |
-| **Telegram** | Public channel web preview (`t.me/s/`) | None | 1 — stable |
-
-**Zero API keys.** Install and it works.
-
----
+<br>
 
 ## Install
 
@@ -62,18 +84,42 @@ With vox-pop:
 pip install vox-pop
 ```
 
-## Usage
+That's it. No API keys. No config. No accounts.
 
-### Python
+<br>
+
+## Quick Start
+
+**CLI** — search all platforms in one command:
+
+```bash
+vox-pop search "should I learn Rust or Go"
+```
+
+```
+### hackernews (45 found)
+> "I am a full stack TypeScript dev looking to broaden my skill set..."
+  — hackernews | +78 points | 42 replies | by throwaway_dev
+  Source: https://news.ycombinator.com/item?id=41907717
+
+### 4chan /g/ (12 found)
+> "Rust is a mass psychosis. Go is boring but you'll actually ship..."
+  — 4chan /g/ | 129 replies | by Anonymous
+
+### reddit (8 found)
+> "After 2 years with both: Rust for systems, Go for services..."
+  — reddit | +234 points | 87 replies | by senior_dev_42
+```
+
+**Python** — embed in your own tools:
 
 ```python
 import asyncio
-from vox_pop import search_multiple
-from vox_pop.core import format_context, get_default_providers
+from vox_pop.core import search_multiple, format_context, get_default_providers
 
 async def main():
     results = await search_multiple(
-        "best laptop for programming 2026",
+        "best laptop for programming",
         providers=get_default_providers(),
     )
     print(format_context(results))
@@ -81,25 +127,43 @@ async def main():
 asyncio.run(main())
 ```
 
-### CLI
+<br>
 
-```bash
-# Search all platforms
-vox-pop search "is Rust worth learning in 2026"
+## Platforms
 
-# Search specific platforms
-vox-pop search "best budget phone" --platforms reddit,hackernews
+Every platform works out of the box. No tokens, no OAuth, no rate limit headaches.
 
-# Get thread comments
-vox-pop thread hackernews 12345678
+| | Platform | Source | Status |
+|:---:|---|---|:---:|
+| ![HN](https://img.shields.io/badge/Y-FF6600?style=flat-square) | **HackerNews** | [Algolia Search API](https://hn.algolia.com/api) | Stable |
+| ![Reddit](https://img.shields.io/badge/r/-FF4500?style=flat-square) | **Reddit** | [Pullpush](https://pullpush.io) + [Arctic Shift](https://arctic-shift.photon-reddit.com) + [Redlib](https://github.com/redlib-org/redlib) fallback | Stable |
+| ![4chan](https://img.shields.io/badge/4-008000?style=flat-square) | **4chan** | [Official JSON API](https://github.com/4chan/4chan-API) (since 2012) | Stable |
+| ![SE](https://img.shields.io/badge/SE-F48024?style=flat-square) | **Stack Exchange** | [Official API](https://api.stackexchange.com/docs) &mdash; 180+ communities | Stable |
+| ![TG](https://img.shields.io/badge/TG-26A5E4?style=flat-square) | **Telegram** | Public channel web preview (`t.me/s/`) | Stable |
 
-# List available platforms
-vox-pop platforms
-```
+<details>
+<summary><strong>Smart routing</strong> — queries auto-route to the best platforms</summary>
 
-### MCP Server (Claude Code, Cursor, Windsurf, etc.)
+<br>
 
-Add to your MCP config:
+| Your question is about... | Searched automatically |
+|---|---|
+| Tech / programming | HackerNews, Stack Overflow, Reddit |
+| Health / fitness / appearance | Reddit, 4chan /fit/, SE Fitness |
+| Travel / living abroad | Reddit, Telegram |
+| Finance / crypto | Reddit, 4chan /biz/, HackerNews |
+| Career / workplace | Reddit, SE Workplace, HackerNews |
+| Cooking / food | Reddit, SE Cooking |
+
+Override anytime with `--platforms reddit,hackernews`
+
+</details>
+
+<br>
+
+## MCP Server
+
+Works with **Claude Code**, **Cursor**, **Windsurf**, and any MCP-compatible client.
 
 ```json
 {
@@ -112,121 +176,99 @@ Add to your MCP config:
 }
 ```
 
-Then your LLM can call:
+Your LLM gets three tools:
 
-```
-search_opinions(query="best laptop 2026", platforms="auto")
-get_thread_opinions(platform="hackernews", thread_id="12345678")
-list_available_platforms()
-```
+| Tool | What it does |
+|---|---|
+| `search_opinions` | Search all platforms for opinions on a topic |
+| `get_thread_opinions` | Dive into a specific thread's comments |
+| `list_available_platforms` | Check what's available and healthy |
 
-### Claude Code Plugin
+<br>
 
-Install the plugin:
+## Claude Code Plugin
 
 ```bash
 claude plugin add /path/to/vox-pop
 ```
 
-The **vox-pop skill** auto-triggers when your question would benefit from real public opinion. No manual invocation needed — just ask naturally:
+The skill **auto-triggers** when your question would benefit from real opinions. Just ask naturally:
 
 ```
-> "What do people think about living in Berlin?"
-> "Should I use Next.js or Remix?"
-> "Best gym routine for beginners?"
+> "What do people think about living in Berlin?"    → activates
+> "Should I use Next.js or Remix?"                  → activates
+> "Best gym routine for beginners?"                 → activates
+> "What's the capital of France?"                   → does not activate
 ```
 
-For manual search: `/vox-search "your query"`
+Manual search: `/vox-search "your query"`
 
----
+<br>
 
-## How It Works
+## Architecture
 
 ```
-┌─────────────────────────────────────────┐
-│  Claude Code Plugin / MCP Client        │  ← what you see
-│  • Auto-triggering skill                │
-│  • /vox-search command                  │
-├─────────────────────────────────────────┤
-│  MCP Server                             │  ← what any LLM can use
-│  • search_opinions()                    │
-│  • get_thread_opinions()                │
-├─────────────────────────────────────────┤
-│  Python Provider Library                │  ← the engine
-│  • HackerNews (Algolia)                 │
-│  • Reddit (Pullpush → Arctic Shift      │
-│           → Redlib fallback)            │
-│  • 4chan (official API + catalog search) │
-│  • Stack Exchange (180+ communities)    │
-│  • Telegram (public channel preview)    │
-└─────────────────────────────────────────┘
+┌─────────────────────────────────────────────┐
+│  Layer 3: Claude Code / MCP Client          │  You see this
+│  Auto-triggering skill + /vox-search        │
+├─────────────────────────────────────────────┤
+│  Layer 2: MCP Server                        │  Any LLM can use this
+│  search_opinions() + get_thread_opinions()  │
+├─────────────────────────────────────────────┤
+│  Layer 1: Python Library                    │  The engine
+│  5 providers with fallback chains           │
+│  HN · Reddit · 4chan · SE · Telegram        │
+└─────────────────────────────────────────────┘
 ```
 
-Each provider implements a fallback chain where applicable. If one source is down, the next is tried automatically. You always get results.
+Each provider implements **automatic fallback** — if one source is down, the next is tried. You always get results.
 
----
-
-## Smart Routing
-
-Vox-pop auto-routes queries to the most relevant platforms:
-
-| Query Type | Auto-selected Platforms |
-|---|---|
-| Tech/programming | HackerNews, Stack Overflow, Reddit |
-| Health/fitness | Reddit, 4chan /fit/, SE Fitness |
-| Travel/living | Reddit, Telegram |
-| Finance/crypto | Reddit, 4chan /biz/, HackerNews |
-| Career/workplace | Reddit, SE Workplace, HackerNews |
-| Cooking/food | Reddit, SE Cooking |
-
-Override with `--platforms` or the `platforms` parameter.
-
----
+<br>
 
 ## Roadmap
 
-### v0.2 — Regional Platforms
-- **DC Inside** (Korea) — Korea's 4chan equivalent, massive public forum
-- **Naver Blog/Café** (Korea) — dominant Korean platform
-- **5ch** (Japan) — successor to 2ch
+| Version | What's coming |
+|:---:|---|
+| **v0.2** | **Regional** — DC Inside (Korea), Naver, 5ch (Japan) |
+| **v0.3** | **Niche** — TikTok, Discord, YouTube comments, Looksmax, XenForo forums |
+| **v1.0** | **Synthesis** — built-in consensus/controversy detection, confidence scores, trend tracking |
 
-### v0.3 — Niche & Zoomer
-- **TikTok** (unofficial, fragile) — comments are opinion gold
-- **Discord** (public servers via bot API)
-- **Looksmax.org** and other XenForo forums
-- **YouTube** comments via Invidious
-
-### v1.0 — Sentiment Aggregation
-- Built-in opinion synthesis (consensus / controversy / outlier detection)
-- Structured JSON output with confidence scores
-- Historical trend tracking ("what did people think about X in 2023 vs now")
-
----
+<br>
 
 ## Contributing
 
-PRs welcome — especially:
-- **New providers** — follow the pattern in `src/vox_pop/providers/base.py`
-- **Better routing** — improve the keyword → platform mapping
-- **Redlib/Nitter instances** — report working/dead instances
-- **Regional platforms** — we want DC Inside, Naver, 5ch, VK, Bilibili
+The easiest way to contribute:
+
+```
+New provider?     → Follow the pattern in src/vox_pop/providers/base.py
+Better routing?   → Improve keyword → platform mapping in any provider
+Dead instance?    → Open an issue with the instance URL
+Regional platform → DC Inside, Naver, 5ch, VK, Bilibili — all welcome
+```
+
+<br>
+
+## Security
+
+| | |
+|---|---|
+| **Data access** | Public data only — official APIs and public web endpoints. No login-wall scraping. |
+| **Credentials** | Zero stored. Optional keys (e.g. SE) passed at runtime, never persisted. |
+| **Rate limits** | Respected per-platform. Built-in concurrency guards. |
+| **User-Agent** | Transparent: `vox-pop/0.1` in all requests. |
+| **PII** | Author names from public posts included for attribution only. Never stored. |
+
+<br>
 
 ---
 
-## Security & Ethics
+<div align="center">
 
-- **Zero auth by default.** We only access publicly available data through official APIs and public web endpoints. No scraping behind login walls.
-- **No credential storage.** Optional API keys (e.g., Stack Exchange) are passed at runtime, never persisted.
-- **Rate limiting respected.** All providers enforce the rate limits documented by the platform.
-- **User-Agent transparency.** We identify as `vox-pop/0.1` in all requests.
-- **No PII collection.** Author names from public posts are included for attribution only and never stored.
+*vox populi, vox dei*<br>
+the voice of the people is the voice of god
 
----
+<br>
 
-## License
+MIT License
 
-MIT
-
----
-
-*vox populi, vox dei — the voice of the people is the voice of god*
+</div>
