@@ -1,0 +1,15 @@
+{
+  "name": "vox-pop",
+  "version": "0.1.0",
+  "description": "Public opinion for LLMs — auto-searches HackerNews, Reddit, 4chan, Stack Exchange, and Telegram for real human opinions when your question would benefit from experiential knowledge. Zero API keys.",
+  "skills": [
+    {
+      "name": "vox-pop",
+      "path": "skills/vox-pop.md"
+    },
+    {
+      "name": "vox-search",
+      "path": "skills/vox-search.md"
+    }
+  ]
+}
