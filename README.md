@@ -2,14 +2,11 @@
 
 <br>
 
-```
-   ██╗   ██╗ ██████╗ ██╗  ██╗      ██████╗  ██████╗ ██████╗
-    ██║   ██║██╔═══██╗╚██╗██╔╝      ██╔══██╗██╔═══██╗██╔══██╗
-    ██║   ██║██║   ██║ ╚███╔╝ █████╗██████╔╝██║   ██║██████╔╝
-   ╚██╗ ██╔╝██║   ██║ ██╔██╗ ╚════╝██╔═══╝ ██║   ██║██╔═══╝
-╚████╔╝ ╚██████╔╝██╔╝ ██╗     ██║     ╚██████╔╝██║
-╚═══╝   ╚═════╝ ╚═╝  ╚═╝     ╚═╝      ╚═════╝ ╚═╝
-```
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/logo-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="assets/logo-light.svg">
+  <img alt="VOX-POP" src="assets/logo-dark.svg" width="420">
+</picture>
 
 ### Your LLM knows what textbooks say.<br>This tells it what people *actually* think.
 
