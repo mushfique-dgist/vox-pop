@@ -4,9 +4,28 @@ from __future__ import annotations
 
 import html
 import re
+import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
+from enum import Enum
 from typing import Any
+
+
+class TimeRange(Enum):
+    """Predefined time ranges for perspective searches."""
+
+    RECENT = "recent"          # Last 6 months
+    HISTORICAL = "historical"  # Older than 1 year
+    ALL = "all"                # No time filter
+
+    def to_timestamps(self) -> tuple[int | None, int | None]:
+        """Return (after, before) Unix timestamps for this range."""
+        now = int(time.time())
+        if self == TimeRange.RECENT:
+            return (now - 180 * 86400, None)       # 6 months ago → now
+        if self == TimeRange.HISTORICAL:
+            return (None, now - 365 * 86400)       # beginning → 1 year ago
+        return (None, None)
 
 
 @dataclass(frozen=True)
@@ -32,6 +51,10 @@ class OpinionResult:
             parts.append(f"{self.num_replies} replies")
         if self.author:
             parts.append(f"by {self.author}")
+        if self.created_at:
+            date_str = str(self.created_at)[:10]
+            if len(date_str) >= 4:
+                parts.append(date_str)
         return " | ".join(parts)
 
 
@@ -44,6 +67,7 @@ class SearchResults:
     results: list[OpinionResult] = field(default_factory=list)
     total_found: int = 0
     error: str | None = None
+    time_range: str = "all"
 
     @property
     def ok(self) -> bool:
@@ -56,13 +80,51 @@ class SearchResults:
         if not self.results:
             return f"[{self.platform}] No results for: {self.query}"
 
-        lines = [f"### {self.platform} ({self.total_found} found, showing {min(len(self.results), max_results)})"]
+        label = self.platform
+        if self.time_range != "all":
+            label = f"{self.platform} ({self.time_range})"
+
+        lines = [f"### {label} ({self.total_found} found, showing {min(len(self.results), max_results)})"]
         for r in self.results[:max_results]:
             text = r.text[:500] + "..." if len(r.text) > 500 else r.text
             lines.append(f"\n> {text}")
             lines.append(f"— {r.trust_signal}")
             if r.url:
                 lines.append(f"  Source: {r.url}")
+        return "\n".join(lines)
+
+
+@dataclass
+class PerspectiveResults:
+    """Combined historical + recent results for a single platform."""
+
+    platform: str
+    query: str
+    recent: SearchResults
+    historical: SearchResults
+
+    def to_context(self, max_per_period: int = 5) -> str:
+        """Format as a Then vs Now comparison."""
+        lines: list[str] = [f"## {self.platform} — Then vs Now\n"]
+
+        if self.historical.ok:
+            lines.append(f"**Historical** (1+ year ago):")
+            for r in self.historical.results[:max_per_period]:
+                text = r.text[:300] + "..." if len(r.text) > 300 else r.text
+                lines.append(f"> {text}")
+                lines.append(f"— {r.trust_signal}\n")
+        else:
+            lines.append("**Historical**: No data found.\n")
+
+        if self.recent.ok:
+            lines.append(f"**Recent** (last 6 months):")
+            for r in self.recent.results[:max_per_period]:
+                text = r.text[:300] + "..." if len(r.text) > 300 else r.text
+                lines.append(f"> {text}")
+                lines.append(f"— {r.trust_signal}\n")
+        else:
+            lines.append("**Recent**: No data found.\n")
+
         return "\n".join(lines)
 
 
@@ -74,6 +136,7 @@ class Provider(ABC):
     """
 
     name: str = "unknown"
+    supports_time_filter: bool = False
 
     @abstractmethod
     async def search(
@@ -81,6 +144,7 @@ class Provider(ABC):
         query: str,
         *,
         limit: int = 10,
+        time_range: TimeRange = TimeRange.ALL,
         **kwargs: Any,
     ) -> SearchResults:
         """Search for opinions matching *query*."""
@@ -125,3 +189,32 @@ def safe_int(value: Any, default: int = 0) -> int:
         return int(value)
     except (ValueError, TypeError):
         return default
+
+
+def relevance_filter(
+    results: list[OpinionResult],
+    query: str,
+    *,
+    min_word_match_ratio: float = 0.4,
+) -> list[OpinionResult]:
+    """Post-filter results by keyword relevance.
+
+    Removes results where fewer than *min_word_match_ratio* of the
+    query words appear in the result text. Helps eliminate noise from
+    broad full-text search APIs like Pullpush.
+    """
+    query_words = set(query.lower().split())
+    # Remove very short/common words
+    query_words = {w for w in query_words if len(w) > 2}
+    if not query_words:
+        return results
+
+    threshold = max(1, int(len(query_words) * min_word_match_ratio))
+    filtered: list[OpinionResult] = []
+    for r in results:
+        text_lower = r.text.lower()
+        matched = sum(1 for w in query_words if w in text_lower)
+        if matched >= threshold:
+            filtered.append(r)
+
+    return filtered

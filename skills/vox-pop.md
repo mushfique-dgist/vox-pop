@@ -45,6 +45,13 @@ python -m vox_pop.cli search "<query>" --platforms reddit --limit 10
 python -m vox_pop.cli search "<query>" --platforms 4chan --limit 10
 ```
 
+For questions where **how opinion has changed over time matters** (tech choices,
+product reputation, company culture, etc.), use perspective mode:
+```bash
+python -m vox_pop.cli search "<query>" --perspective --platforms hackernews,reddit --limit 5
+```
+This returns both historical (1+ year old) and recent (last 6 months) opinions.
+
 ## Step 2: Aggregate
 
 After collecting results, organize them into this structure for your response:
@@ -68,6 +75,24 @@ Searched: [platforms searched] | [N total results]
 → [Highest-engagement results with platform + score]
 
 ⚠ Caveats: [Any quality warnings — unvetted medical advice, anecdotal evidence, etc.]
+─────────────────────────────────────────────────
+```
+
+### Perspective Template (when --perspective was used)
+
+```
+★ Public Opinion: Then vs Now ───────────────────
+Topic: [query]
+
+**Historical** (1+ year ago):
+→ [What people used to think/recommend]
+→ [Old consensus, now-outdated tools/methods]
+
+**Recent** (last 6 months):
+→ [Current opinion — what changed?]
+→ [New consensus, updated recommendations]
+
+**Shift**: [Brief summary of how opinion evolved]
 ─────────────────────────────────────────────────
 ```
 

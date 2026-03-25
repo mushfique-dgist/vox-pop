@@ -3,6 +3,7 @@
 Usage:
     vox-pop search "how to debloat face" --platforms auto
     vox-pop search "best laptop 2026" --platforms hackernews,reddit
+    vox-pop search "rust vs go" --perspective
     vox-pop thread hackernews 12345678
     vox-pop platforms
 """
@@ -15,10 +16,12 @@ import sys
 
 from vox_pop.core import (
     format_context,
+    format_perspective,
     get_default_providers,
     get_provider,
     list_providers,
     search_multiple,
+    search_with_perspective,
 )
 
 
@@ -42,6 +45,11 @@ def main(argv: list[str] | None = None) -> None:
         type=int,
         default=5,
         help="Max results per platform (default: 5)",
+    )
+    search_p.add_argument(
+        "--perspective",
+        action="store_true",
+        help="Show both historical and recent opinions (Then vs Now)",
     )
 
     # ── thread ──────────────────────────────────────────────────
@@ -72,24 +80,18 @@ def main(argv: list[str] | None = None) -> None:
 
 
 async def _cmd_search(args: argparse.Namespace) -> None:
-    if args.platforms == "auto":
-        providers = get_default_providers()
+    providers = _resolve_providers(args.platforms)
+
+    if args.perspective:
+        results = await search_with_perspective(
+            args.query, providers=providers, limit_per_period=args.limit,
+        )
+        print(format_perspective(results, max_per_period=args.limit))
     else:
-        providers = []
-        for name in args.platforms.split(","):
-            try:
-                providers.append(get_provider(name.strip()))
-            except KeyError:
-                print(f"Warning: unknown platform '{name.strip()}', skipping", file=sys.stderr)
-
-    if not providers:
-        print(f"No valid platforms. Available: {', '.join(list_providers())}", file=sys.stderr)
-        sys.exit(1)
-
-    results = await search_multiple(
-        args.query, providers=providers, limit_per_platform=args.limit,
-    )
-    print(format_context(results, max_per_platform=args.limit))
+        results = await search_multiple(
+            args.query, providers=providers, limit_per_platform=args.limit,
+        )
+        print(format_context(results, max_per_platform=args.limit))
 
 
 async def _cmd_thread(args: argparse.Namespace) -> None:
@@ -112,9 +114,30 @@ async def _cmd_thread(args: argparse.Namespace) -> None:
 
 
 def _cmd_platforms() -> None:
+    from vox_pop.providers import PROVIDERS
+
     print("Available platforms:")
-    for name in list_providers():
-        print(f"  - {name}")
+    for name, cls in PROVIDERS.items():
+        temporal = "time filter" if cls().supports_time_filter else "current only"
+        print(f"  - {name} ({temporal})")
+
+
+def _resolve_providers(platforms_str: str) -> list:
+    if platforms_str == "auto":
+        return get_default_providers()
+
+    providers = []
+    for name in platforms_str.split(","):
+        try:
+            providers.append(get_provider(name.strip()))
+        except KeyError:
+            print(f"Warning: unknown platform '{name.strip()}', skipping", file=sys.stderr)
+
+    if not providers:
+        print(f"No valid platforms. Available: {', '.join(list_providers())}", file=sys.stderr)
+        sys.exit(1)
+
+    return providers
 
 
 if __name__ == "__main__":

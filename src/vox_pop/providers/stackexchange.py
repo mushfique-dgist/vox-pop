@@ -1,8 +1,8 @@
 """Stack Exchange provider via the official API.
 
 Tier 1 — free, 300 requests/day without a key, 10,000/day with a
-free registered key. Covers 180+ communities (Stack Overflow,
-ServerFault, Super User, Fitness, Skeptics, etc.).
+free registered key. Covers 180+ communities.
+Supports time filtering for perspective searches.
 
 Docs: https://api.stackexchange.com/docs
 """
@@ -17,6 +17,7 @@ from vox_pop.providers.base import (
     OpinionResult,
     Provider,
     SearchResults,
+    TimeRange,
     safe_int,
     strip_html,
 )
@@ -24,12 +25,13 @@ from vox_pop.providers.base import (
 _BASE = "https://api.stackexchange.com/2.3"
 _TIMEOUT = 15.0
 
-# Mapping from topic keywords to Stack Exchange sites.
 SITE_ROUTES: dict[str, list[str]] = {
     "programming": ["stackoverflow"],
     "code": ["stackoverflow"],
     "python": ["stackoverflow"],
     "javascript": ["stackoverflow"],
+    "rust": ["stackoverflow"],
+    "go": ["stackoverflow"],
     "server": ["serverfault"],
     "linux": ["unix", "askubuntu"],
     "fitness": ["fitness"],
@@ -53,6 +55,7 @@ class StackExchangeProvider(Provider):
     """Search across Stack Exchange sites."""
 
     name = "stackexchange"
+    supports_time_filter = True
 
     def __init__(self, api_key: str | None = None) -> None:
         self._api_key = api_key
@@ -63,6 +66,7 @@ class StackExchangeProvider(Provider):
         *,
         limit: int = 10,
         sites: list[str] | None = None,
+        time_range: TimeRange = TimeRange.ALL,
         **kwargs: Any,
     ) -> SearchResults:
         if not sites:
@@ -71,9 +75,11 @@ class StackExchangeProvider(Provider):
         all_results: list[OpinionResult] = []
         errors: list[str] = []
 
-        for site in sites[:3]:  # Cap at 3 sites
+        for site in sites[:3]:
             try:
-                results = await self._search_site(query, site, limit=limit)
+                results = await self._search_site(
+                    query, site, limit=limit, time_range=time_range,
+                )
                 all_results.extend(results)
             except (httpx.HTTPError, ValueError) as exc:
                 errors.append(f"{site}: {exc}")
@@ -83,9 +89,9 @@ class StackExchangeProvider(Provider):
                 platform=self.name,
                 query=query,
                 error="; ".join(errors),
+                time_range=time_range.value,
             )
 
-        # Sort by score (most upvoted first)
         all_results.sort(key=lambda r: r.score, reverse=True)
 
         return SearchResults(
@@ -93,6 +99,7 @@ class StackExchangeProvider(Provider):
             query=query,
             results=all_results[:limit],
             total_found=len(all_results),
+            time_range=time_range.value,
         )
 
     async def get_thread(
@@ -141,6 +148,7 @@ class StackExchangeProvider(Provider):
         site: str,
         *,
         limit: int = 10,
+        time_range: TimeRange = TimeRange.ALL,
     ) -> list[OpinionResult]:
         params: dict[str, Any] = {
             "order": "desc",
@@ -152,6 +160,13 @@ class StackExchangeProvider(Provider):
         if self._api_key:
             params["key"] = self._api_key
 
+        # Apply time filter
+        after, before = time_range.to_timestamps()
+        if after is not None:
+            params["fromdate"] = after
+        if before is not None:
+            params["todate"] = before
+
         async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
             resp = await client.get(f"{_BASE}/search", params=params)
             resp.raise_for_status()
@@ -159,6 +174,13 @@ class StackExchangeProvider(Provider):
 
         results: list[OpinionResult] = []
         for item in data.get("items", []):
+            created = item.get("creation_date", 0)
+            if isinstance(created, (int, float)) and created > 0:
+                from datetime import datetime, timezone
+                created_at = datetime.fromtimestamp(created, tz=timezone.utc).strftime("%Y-%m-%d")
+            else:
+                created_at = str(created)
+
             results.append(
                 OpinionResult(
                     text=strip_html(item.get("title", "")),
@@ -167,7 +189,7 @@ class StackExchangeProvider(Provider):
                     author=item.get("owner", {}).get("display_name", ""),
                     score=safe_int(item.get("score")),
                     num_replies=safe_int(item.get("answer_count")),
-                    created_at=str(item.get("creation_date", "")),
+                    created_at=created_at,
                     metadata={
                         "is_answered": item.get("is_answered", False),
                         "view_count": safe_int(item.get("view_count")),
@@ -180,7 +202,6 @@ class StackExchangeProvider(Provider):
 
     @staticmethod
     def _route_sites(query: str) -> list[str]:
-        """Pick relevant SE sites from query keywords."""
         query_lower = query.lower()
         sites: list[str] = []
         for keyword, site_list in SITE_ROUTES.items():
@@ -188,8 +209,6 @@ class StackExchangeProvider(Provider):
                 for s in site_list:
                     if s not in sites:
                         sites.append(s)
-
-        # Default to Stack Overflow
         return sites if sites else ["stackoverflow"]
 
     async def health_check(self) -> bool:

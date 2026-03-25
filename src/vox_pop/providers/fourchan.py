@@ -25,6 +25,7 @@ from vox_pop.providers.base import (
     OpinionResult,
     Provider,
     SearchResults,
+    TimeRange,
     safe_int,
     strip_html,
 )
@@ -73,6 +74,7 @@ class FourChanProvider(Provider):
     """Search 4chan boards via catalog filtering."""
 
     name = "4chan"
+    supports_time_filter = False  # Catalog is inherently current-only
 
     async def search(
         self,
@@ -80,6 +82,7 @@ class FourChanProvider(Provider):
         *,
         limit: int = 10,
         boards: list[str] | None = None,
+        time_range: TimeRange = TimeRange.ALL,
         **kwargs: Any,
     ) -> SearchResults:
         if not boards:

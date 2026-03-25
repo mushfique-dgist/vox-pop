@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "vox-pop"
-version = "0.1.0"
+version = "0.1.1"
 description = "Public opinion for LLMs — HackerNews, Reddit, 4chan, Stack Exchange, Telegram. Zero API keys."
 readme = "README.md"
 license = "MIT"
@@ -42,9 +42,9 @@ vox-pop = "vox_pop.cli:main"
 vox-pop-server = "vox_pop.server:main"
 
 [project.urls]
-Homepage = "https://github.com/Mushfique/vox-pop"
-Repository = "https://github.com/Mushfique/vox-pop"
-Issues = "https://github.com/Mushfique/vox-pop/issues"
+Homepage = "https://github.com/mushfique-dgist/vox-pop"
+Repository = "https://github.com/mushfique-dgist/vox-pop"
+Issues = "https://github.com/mushfique-dgist/vox-pop/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/vox_pop"]

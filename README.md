@@ -96,6 +96,44 @@ That's it. No API keys. No config. No accounts.
 vox-pop search "should I learn Rust or Go"
 ```
 
+**Perspective mode** — see how opinions evolved over time:
+
+```bash
+vox-pop search "rust vs go" --perspective --platforms hackernews,reddit
+```
+
+```
+## hackernews — Then vs Now
+
+Historical (1+ year ago):
+> "Rust vs. Go"
+  — hackernews | +481 points | 580 replies | 2017-01-18
+
+Recent (last 6 months):
+> "Rust vs. Go: Memory Management"
+  — hackernews | +2 points | 2025-11-15
+
+## reddit — Then vs Now
+
+Historical:
+> "Experienced developer but total beginner in Rust..."
+  — reddit | +124 points | 34 replies | 2025-03-14
+
+Recent:
+> "I rebuilt the same API in Java, Go, Kotlin, and Rust — here are the numbers"
+  — reddit | +174 points | 59 replies | 2026-03-19
+```
+
+The shift tells a story: **2017 was a flame war. 2026 is domain-specific pragmatism.**
+
+---
+
+**Standard search** — flat results from all platforms:
+
+```bash
+vox-pop search "should I learn Rust or Go" --limit 3
+```
+
 ```
 ### hackernews (45 found)
 > "I am a full stack TypeScript dev looking to broaden my skill set..."
@@ -181,6 +219,7 @@ Your LLM gets three tools:
 | Tool | What it does |
 |---|---|
 | `search_opinions` | Search all platforms for opinions on a topic |
+| `search_opinions_perspective` | **Then vs Now** — historical + recent opinions side by side |
 | `get_thread_opinions` | Dive into a specific thread's comments |
 | `list_available_platforms` | Check what's available and healthy |
 

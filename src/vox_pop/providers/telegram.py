@@ -25,6 +25,7 @@ from vox_pop.providers.base import (
     OpinionResult,
     Provider,
     SearchResults,
+    TimeRange,
     strip_html,
 )
 
@@ -57,6 +58,7 @@ class TelegramProvider(Provider):
     """Search Telegram public channels via web preview."""
 
     name = "telegram"
+    supports_time_filter = False  # Web preview shows recent messages only
 
     async def search(
         self,
@@ -64,6 +66,7 @@ class TelegramProvider(Provider):
         *,
         limit: int = 10,
         channels: list[str] | None = None,
+        time_range: TimeRange = TimeRange.ALL,
         **kwargs: Any,
     ) -> SearchResults:
         if not channels:
