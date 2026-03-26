@@ -27,7 +27,7 @@ from vox_pop.providers.base import parse_routing_hints
 
 mcp = FastMCP(
     "vox-pop",
-    instructions="Public opinion for LLMs — HackerNews, Reddit, 4chan, Stack Exchange, Telegram. Zero API keys.",
+    instructions="Public opinion for LLMs — 9 platforms (HackerNews, Reddit, 4chan, Stack Exchange, Telegram, Lobsters, Lemmy, LessWrong, forums) with semantic routing. Optional LLM key improves routing.",
 )
 
 
@@ -43,8 +43,8 @@ async def search_opinions(
     Args:
         query: What to search for (e.g. "best laptop for programming")
         platforms: Comma-separated platform names, or "auto" for all.
-                   Available: hackernews, reddit, 4chan, stackexchange, telegram,
-                   lobsters, lemmy, lesswrong, forums
+                   Available: hackernews, reddit, 4chan, stackexchange,
+                   telegram, lobsters, lemmy, lesswrong, forums
         limit: Max results per platform (default 5).
         routing_hints: Optional. Comma-separated platform:destination pairs
                        specifying which communities/boards to search.

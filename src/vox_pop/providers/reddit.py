@@ -459,7 +459,7 @@ class RedditProvider(Provider):
                 try:
                     resp = await client.get(
                         base + path,
-                        headers={"User-Agent": "Mozilla/5.0 (compatible; vox-pop/0.1)"},
+                        headers={"User-Agent": "Mozilla/5.0 (compatible; vox-pop/0.2)"},
                     )
                     if resp.status_code != 200:
                         continue

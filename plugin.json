@@ -1,7 +1,7 @@
 {
   "name": "vox-pop",
-  "version": "0.1.0",
-  "description": "Public opinion for LLMs — auto-searches HackerNews, Reddit, 4chan, Stack Exchange, and Telegram for real human opinions when your question would benefit from experiential knowledge. Zero API keys.",
+  "version": "0.2.0",
+  "description": "Public opinion for LLMs — searches 9 platforms (HackerNews, Reddit, 4chan, Stack Exchange, Telegram, Lobsters, Lemmy, LessWrong, forums) with semantic routing and LLM intelligence layer. No API keys required for core functionality.",
   "skills": [
     {
       "name": "vox-pop",

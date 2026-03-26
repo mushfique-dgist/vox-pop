@@ -1,8 +1,9 @@
 """
 vox-pop — Public opinion for LLMs.
 
-Search HackerNews, Reddit, 4chan, Stack Exchange, and Telegram
-for real human opinions. Zero API keys required.
+Search 9 platforms (HackerNews, Reddit, 4chan, Stack Exchange, Telegram,
+Lobsters, Lemmy, LessWrong, forums) for real human opinions.
+Semantic routing + optional LLM intelligence layer.
 """
 
 __version__ = "0.2.0"

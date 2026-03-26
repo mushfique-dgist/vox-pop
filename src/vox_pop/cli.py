@@ -29,7 +29,7 @@ from vox_pop.core import (
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(
         prog="vox-pop",
-        description="Public opinion for LLMs — zero API keys.",
+        description="Public opinion for LLMs — 9 platforms, semantic routing.",
     )
     parser.add_argument(
         "--version", "-V", action="version", version=f"%(prog)s {__version__}",

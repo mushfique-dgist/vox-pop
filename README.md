@@ -10,12 +10,12 @@
 
 ### Your LLM knows what textbooks say.<br>This tells it what people *actually* think.
 
-**9 platforms** &bull; **Semantic routing** &bull; **LLM intelligence layer** &bull; **Zero API keys required**
+**9 platforms** &bull; **Semantic routing** &bull; **LLM intelligence layer** &bull; **Works without API keys**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10+-3776AB.svg)](https://python.org)
 [![MCP Compatible](https://img.shields.io/badge/MCP-Compatible-8A2BE2.svg)](https://modelcontextprotocol.io)
-[![Zero API Keys](https://img.shields.io/badge/API_Keys-Zero-brightgreen.svg)](#)
+[![No Keys Required](https://img.shields.io/badge/API_Keys-Optional-brightgreen.svg)](#how-routing-works)
 
 [Install](#install) &bull; [Quick Start](#quick-start) &bull; [Platforms](#platforms) &bull; [How Routing Works](#how-routing-works) &bull; [MCP Server](#mcp-server) &bull; [Claude Code Plugin](#claude-code-plugin) &bull; [Roadmap](#roadmap)
 
@@ -81,7 +81,7 @@ What actually worked:
 pip install vox-pop
 ```
 
-That's it. No API keys. No config. No accounts.
+That's it. All 9 platforms work with zero API keys. Optional LLM key unlocks smarter routing (see [How Routing Works](#how-routing-works)).
 
 <br>
 
@@ -312,7 +312,8 @@ Manual search: `/vox-search "your query"`
 ├─────────────────────────────────────────────────┤
 │  Layer 1: Python Library + Smart Router         │  The engine
 │  9 providers · 4-tier routing · fallback chains │
-│  HN · Reddit · 4chan · SE · Telegram            │
+│  HN · Reddit · 4chan · SE · Telegram · Lobsters  │
+│  Lemmy · LessWrong · XenForo Forums             │
 │  Lobsters · Lemmy · LessWrong · XenForo         │
 └─────────────────────────────────────────────────┘
 ```
@@ -349,7 +350,7 @@ Regional platform?  → DC Inside, Naver, 5ch, VK, Bilibili — all welcome
 | **Data access** | Public data only — official APIs and public web endpoints. No login-wall scraping. |
 | **Credentials** | Zero stored. Optional LLM keys for routing only, passed via env vars, never persisted. |
 | **Rate limits** | Respected per-platform. Built-in concurrency guards. |
-| **User-Agent** | Transparent: `vox-pop/0.1` in all requests. |
+| **User-Agent** | Transparent: `vox-pop/0.2` in all requests. |
 | **Caching** | API responses and embeddings cached locally at `~/.cache/vox-pop/`. No data sent to third parties. |
 | **PII** | Author names from public posts included for attribution only. Never stored. |
 

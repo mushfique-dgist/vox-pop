@@ -141,7 +141,7 @@ class TelegramProvider(Provider):
         async with httpx.AsyncClient(timeout=_TIMEOUT, follow_redirects=True) as client:
             resp = await client.get(
                 url,
-                headers={"User-Agent": "Mozilla/5.0 (compatible; vox-pop/0.1)"},
+                headers={"User-Agent": "Mozilla/5.0 (compatible; vox-pop/0.2)"},
             )
             resp.raise_for_status()
             html = resp.text

@@ -76,7 +76,7 @@ class LobstersProvider(Provider):
             resp = await client.get(
                 url,
                 params=params,
-                headers={"User-Agent": "Mozilla/5.0 (compatible; vox-pop/0.1)"},
+                headers={"User-Agent": "Mozilla/5.0 (compatible; vox-pop/0.2)"},
             )
             resp.raise_for_status()
             html = resp.text

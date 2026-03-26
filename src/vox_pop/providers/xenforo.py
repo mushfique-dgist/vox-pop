@@ -176,7 +176,7 @@ class XenForoProvider(Provider):
             resp = await client.get(
                 url,
                 params=params,
-                headers={"User-Agent": "Mozilla/5.0 (compatible; vox-pop/0.1)"},
+                headers={"User-Agent": "Mozilla/5.0 (compatible; vox-pop/0.2)"},
             )
             resp.raise_for_status()
             html = resp.text
@@ -249,7 +249,7 @@ class XenForoProvider(Provider):
             async with httpx.AsyncClient(timeout=5.0) as client:
                 resp = await client.get(
                     f"{FORUM_SITES[0].base_url}/",
-                    headers={"User-Agent": "Mozilla/5.0 (compatible; vox-pop/0.1)"},
+                    headers={"User-Agent": "Mozilla/5.0 (compatible; vox-pop/0.2)"},
                 )
                 return resp.status_code == 200
         except httpx.HTTPError:
