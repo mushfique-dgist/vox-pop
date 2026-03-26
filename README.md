@@ -303,42 +303,57 @@ Manual search: `/vox-search "your query"`
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────┐
-│  Layer 3: Claude Code / MCP Client              │  You see this
-│  Auto-triggering skill + /vox-search            │
-├─────────────────────────────────────────────────┤
-│  Layer 2: MCP Server                            │  Any LLM can use this
-│  search_opinions() + perspectives + threads     │
-├─────────────────────────────────────────────────┤
-│  Layer 1: Python Library + Smart Router         │  The engine
-│  9 providers · 4-tier routing · fallback chains │
-│  HN · Reddit · 4chan · SE · Telegram · Lobsters  │
-│  Lemmy · LessWrong · XenForo Forums             │
-│  Lobsters · Lemmy · LessWrong · XenForo         │
-└─────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────┐
+│  Layer 3: Claude Code / MCP Client                       │
+│  Auto-triggering skill + /vox-search                     │
+├──────────────────────────────────────────────────────────┤
+│  Layer 2: MCP Server                                     │
+│  search_opinions · perspectives · threads · list         │
+├──────────────────────────────────────────────────────────┤
+│  Layer 1: Python Library                                 │
+│  ┌────────────────────────────────────────────────────┐  │
+│  │  Smart Router (4-tier)                             │  │
+│  │  MCP hints → LLM rewrite → FastEmbed → broad      │  │
+│  └────────────────────────────────────────────────────┘  │
+│  ┌────────────────────────────────────────────────────┐  │
+│  │  9 Providers with fallback chains                  │  │
+│  │  HN · Reddit · 4chan · SE · Telegram               │  │
+│  │  Lobsters · Lemmy · LessWrong · XenForo Forums     │  │
+│  └────────────────────────────────────────────────────┘  │
+│  ┌────────────────────────────────────────────────────┐  │
+│  │  Dynamic Catalog                                   │  │
+│  │  77 4chan boards + 180 SE sites fetched from APIs   │  │
+│  │  + 120 static destinations · cached to disk         │  │
+│  └────────────────────────────────────────────────────┘  │
+└──────────────────────────────────────────────────────────┘
 ```
 
-Each provider implements **automatic fallback** — if one source is down, the next is tried. You always get results.
+Each provider implements **automatic fallback** — if one source is down, the next is tried. Reddit alone has three fallback sources (Pullpush → Arctic Shift → Redlib).
 
 <br>
 
 ## Roadmap
 
-| Version | What's coming |
-|:---:|---|
-| **v0.2** | **Regional** — DC Inside (Korea), Naver, 5ch (Japan) |
-| **v0.3** | **Niche** — TikTok, Discord, YouTube comments, Looksmax |
-| **v1.0** | **Synthesis** — built-in consensus/controversy detection, confidence scores, trend tracking |
+| Version | Status | What |
+|:---:|:---:|---|
+| **v0.1** | Shipped | 5 providers (HN, Reddit, 4chan, SE, Telegram), MCP server, Claude Code plugin |
+| **v0.2** | **Current** | 9 providers, 4-tier smart routing, LLM query rewriting, FastEmbed semantic routing, dynamic catalog |
+| **v0.3** | Next | **Regional** — DC Inside (Korea), Naver, 5ch (Japan) |
+| **v0.4** | Planned | **Niche** — TikTok, Discord, YouTube comments, Looksmax |
+| **v1.0** | Planned | **Synthesis** — built-in consensus/controversy detection, confidence scores, trend tracking |
 
 <br>
 
 ## Contributing
 
 ```
-New provider?       → Subclass Provider in src/vox_pop/providers/base.py
-Better routing?     → Add destinations to DESTINATIONS in router.py
-Dead instance?      → Open an issue with the instance URL
-Regional platform?  → DC Inside, Naver, 5ch, VK, Bilibili — all welcome
+New provider?          → Subclass Provider in src/vox_pop/providers/base.py
+New routing destination → Add to DESTINATIONS in router.py (one line)
+Dynamic catalog source → Add a _fetch_*_destinations() function in router.py
+Better LLM prompt?     → Improve _LLM_SYSTEM in router.py
+Multilingual support?  → Swap FastEmbed model to bge-m3 in SemanticRouter
+Dead instance?         → Open an issue with the instance URL
+Regional platform?     → DC Inside, Naver, 5ch, VK, Bilibili — all welcome
 ```
 
 <br>
@@ -348,11 +363,12 @@ Regional platform?  → DC Inside, Naver, 5ch, VK, Bilibili — all welcome
 | | |
 |---|---|
 | **Data access** | Public data only — official APIs and public web endpoints. No login-wall scraping. |
-| **Credentials** | Zero stored. Optional LLM keys for routing only, passed via env vars, never persisted. |
+| **Credentials** | Zero stored. Optional LLM keys passed via env vars at runtime, never written to disk. |
+| **LLM routing** | When `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` is set, your query text (up to 4000 chars) is sent to the respective LLM API for routing only. No queries are sent externally without an explicit API key. Without keys, routing runs entirely locally via FastEmbed. |
 | **Rate limits** | Respected per-platform. Built-in concurrency guards. |
 | **User-Agent** | Transparent: `vox-pop/0.2` in all requests. |
-| **Caching** | API responses and embeddings cached locally at `~/.cache/vox-pop/`. No data sent to third parties. |
-| **PII** | Author names from public posts included for attribution only. Never stored. |
+| **Caching** | API responses (7 days) and embeddings cached locally at `~/.cache/vox-pop/`. No data sent to third parties. Embeddings stored as JSON, no serialization dependencies. |
+| **PII** | Author names from public posts included for attribution only. Never stored beyond the response. |
 
 <br>
 
