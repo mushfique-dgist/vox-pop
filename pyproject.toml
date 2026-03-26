@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "vox-pop"
-version = "0.1.1"
+version = "0.2.0"
 description = "Public opinion for LLMs — 9 platforms, semantic routing, LLM intelligence layer. Zero API keys required."
 readme = "README.md"
 license = "MIT"
