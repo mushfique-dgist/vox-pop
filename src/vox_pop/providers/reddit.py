@@ -23,8 +23,10 @@ from vox_pop.providers.base import (
     Provider,
     SearchResults,
     TimeRange,
+    TopicProfile,
     relevance_filter,
     safe_int,
+    score_route,
     strip_html,
 )
 
@@ -40,40 +42,229 @@ _ARCTIC_POSTS = "https://arctic-shift.photon-reddit.com/api/posts/search"
 
 # Redlib instances ordered by observed reliability (March 2026).
 _REDLIB_INSTANCES = [
-    "https://redlib.catsarch.com",
+    "https://redlib.privacyredirect.com",
     "https://redlib.zaggy.nl",
-    "https://safereddit.com",
     "https://rl.bloat.cat",
+    "https://redlib.catsarch.com",
+    "https://safereddit.com",
 ]
 
-# ── Subreddit routing by topic ──────────────────────────────────
+# ── Subreddit profiles for scoring-based routing ──────────────
 
-SUBREDDIT_ROUTES: dict[str, list[str]] = {
-    "programming": ["programming", "learnprogramming", "coding"],
-    "python": ["Python", "learnpython"],
-    "javascript": ["javascript", "webdev"],
-    "rust": ["rust", "programming"],
-    "go": ["golang", "programming"],
-    "laptop": ["SuggestALaptop", "laptops", "buildapc"],
-    "phone": ["PickAnAndroidForMe", "iphone", "smartphones"],
-    "skincare": ["SkincareAddiction", "30PlusSkinCare"],
-    "fitness": ["Fitness", "bodyweightfitness", "GYM"],
-    "diet": ["nutrition", "EatCheapAndHealthy"],
-    "travel": ["travel", "solotravel", "backpacking"],
-    "study abroad": ["StudyInTheNetherlands", "studyAbroad"],
-    "university": ["college", "ApplyingToCollege", "GradSchool"],
-    "career": ["cscareerquestions", "careerguidance", "jobs"],
-    "finance": ["personalfinance", "investing", "FinancialPlanning"],
-    "crypto": ["CryptoCurrency", "Bitcoin", "ethereum"],
-    "gaming": ["gaming", "pcgaming", "Games"],
-    "relationship": ["relationships", "dating_advice"],
-    "mental health": ["mentalhealth", "anxiety", "depression"],
-    "cooking": ["Cooking", "EatCheapAndHealthy", "MealPrepSunday"],
-    "fashion": ["malefashionadvice", "femalefashionadvice"],
-    "tech": ["technology", "gadgets"],
-    "ai": ["artificial", "MachineLearning", "LocalLLaMA", "ClaudeAI"],
-    "startup": ["startups", "Entrepreneur", "SideProject"],
-}
+SUBREDDIT_PROFILES: list[TopicProfile] = [
+    # Tech / programming
+    TopicProfile("programming", [
+        "programming", "code", "coding", "software", "developer",
+        "open source", "github", "debug",
+    ]),
+    TopicProfile("learnprogramming", [
+        "learn programming", "learn to code", "beginner programming",
+        "coding bootcamp", "first language",
+    ]),
+    TopicProfile("Python", [
+        "python", "django", "flask", "pandas", "numpy", "pip",
+    ]),
+    TopicProfile("learnpython", [
+        "learn python", "python beginner", "python tutorial",
+    ]),
+    TopicProfile("javascript", [
+        "javascript", "typescript", "react", "vue", "angular", "node",
+        "nextjs", "next.js", "frontend", "front end",
+    ]),
+    TopicProfile("webdev", [
+        "web development", "web dev", "frontend", "backend", "fullstack",
+        "html", "css", "responsive",
+    ]),
+    TopicProfile("rust", ["rust", "rustlang", "cargo", "borrow checker"]),
+    TopicProfile("golang", ["golang", "go language", "goroutine"]),
+    TopicProfile("technology", [
+        "tech", "technology", "gadget", "innovation", "silicon valley",
+    ]),
+    TopicProfile("LocalLLaMA", [
+        "llm", "local llm", "llama", "ai model", "fine tuning",
+        "artificial intelligence", "machine learning", "deep learning",
+        "gpt", "claude", "chatgpt",
+    ]),
+    TopicProfile("MachineLearning", [
+        "machine learning", "deep learning", "neural network", "ai research",
+        "transformer", "training", "inference",
+    ]),
+    TopicProfile("ClaudeAI", ["claude", "anthropic", "claude ai"]),
+
+    # Hardware / gadgets
+    TopicProfile("SuggestALaptop", [
+        "laptop", "notebook", "chromebook", "best laptop",
+        "laptop for programming", "laptop for college",
+    ]),
+    TopicProfile("buildapc", [
+        "build pc", "pc build", "custom pc", "gpu", "cpu",
+        "graphics card", "motherboard", "ram",
+    ]),
+    TopicProfile("PickAnAndroidForMe", [
+        "android phone", "best phone", "budget phone", "smartphone",
+    ]),
+    TopicProfile("iphone", ["iphone", "ios", "apple phone"]),
+    TopicProfile("MechanicalKeyboards", [
+        "mechanical keyboard", "keycaps", "switches", "custom keyboard",
+        "keyboard build", "cherry mx", "gateron",
+    ]),
+    TopicProfile("headphones", [
+        "headphone", "earbuds", "earphone", "iem", "over ear",
+        "noise cancelling", "wireless earbuds", "audiophile",
+    ]),
+    TopicProfile("HeadphoneAdvice", [
+        "best headphone", "headphone recommendation", "which headphone",
+    ]),
+    TopicProfile("Monitors", [
+        "monitor", "display", "ultrawide", "4k monitor", "gaming monitor",
+    ]),
+    TopicProfile("MouseReview", [
+        "mouse", "gaming mouse", "wireless mouse", "mouse recommendation",
+    ]),
+    TopicProfile("cameras", [
+        "camera", "dslr", "mirrorless", "photography gear", "lens",
+    ]),
+
+    # Fitness / health
+    TopicProfile("Fitness", [
+        "fitness", "gym", "workout", "exercise", "lifting", "strength",
+        "muscle", "bodybuilding", "cardio", "bench press", "squat",
+        "deadlift", "personal trainer", "routine",
+    ]),
+    TopicProfile("bodyweightfitness", [
+        "bodyweight", "calisthenics", "pull up", "push up", "home workout",
+    ]),
+    TopicProfile("loseit", [
+        "weight loss", "lose weight", "diet", "calorie deficit", "obesity",
+    ]),
+    TopicProfile("running", [
+        "running", "marathon", "jogging", "5k", "10k", "couch to 5k",
+        "treadmill", "trail running",
+    ]),
+    TopicProfile("yoga", ["yoga", "flexibility", "stretching", "meditation"]),
+    TopicProfile("SkincareAddiction", [
+        "skincare", "skin care", "acne", "moisturizer", "sunscreen",
+        "retinol", "face routine", "skin routine", "face", "bloat",
+        "pore", "wrinkle", "glow up",
+    ]),
+    TopicProfile("nutrition", [
+        "nutrition", "diet", "macro", "protein", "vitamin", "supplement",
+        "meal plan", "calorie",
+    ]),
+    TopicProfile("mentalhealth", [
+        "mental health", "anxiety", "depression", "therapy", "therapist",
+        "burnout", "stress", "panic attack",
+    ]),
+    TopicProfile("sleep", [
+        "sleep", "insomnia", "sleep quality", "mattress", "melatonin",
+    ]),
+
+    # Life / career / finance
+    TopicProfile("cscareerquestions", [
+        "career", "software engineer", "tech career", "interview",
+        "resume", "job search", "salary", "tech interview",
+        "leetcode", "coding interview",
+    ]),
+    TopicProfile("careerguidance", [
+        "career advice", "career change", "career path", "job advice",
+    ]),
+    TopicProfile("personalfinance", [
+        "finance", "budget", "saving", "debt", "credit card",
+        "retirement", "investing", "401k", "ira",
+    ]),
+    TopicProfile("investing", [
+        "investing", "investment", "stock", "etf", "portfolio",
+        "dividend", "index fund",
+    ]),
+    TopicProfile("CryptoCurrency", [
+        "crypto", "cryptocurrency", "bitcoin", "ethereum", "defi",
+        "blockchain", "token", "nft",
+    ]),
+    TopicProfile("startups", [
+        "startup", "entrepreneur", "founder", "venture capital",
+        "mvp", "saas", "side project",
+    ]),
+
+    # Education / moving
+    TopicProfile("college", [
+        "college", "university", "degree", "major", "campus",
+        "tuition", "student",
+    ]),
+    TopicProfile("GradSchool", [
+        "grad school", "graduate school", "phd", "masters", "thesis",
+    ]),
+    TopicProfile("studyAbroad", [
+        "study abroad", "exchange student", "international student",
+    ]),
+    TopicProfile("IWantOut", [
+        "moving abroad", "emigrate", "immigration", "expat",
+        "relocate", "move to",
+    ]),
+
+    # Lifestyle
+    TopicProfile("travel", [
+        "travel", "traveling", "backpacking", "solo travel", "trip",
+        "flight", "hotel", "hostel", "itinerary",
+    ]),
+    TopicProfile("Cooking", [
+        "cooking", "recipe", "meal prep", "kitchen", "baking",
+        "chef", "home cooking",
+    ]),
+    TopicProfile("EatCheapAndHealthy", [
+        "cheap food", "budget meal", "healthy eating", "meal budget",
+    ]),
+    TopicProfile("relationships", [
+        "relationship", "dating", "partner", "breakup", "marriage",
+    ]),
+    TopicProfile("malefashionadvice", [
+        "fashion", "outfit", "style", "clothing", "men fashion",
+        "what to wear", "wardrobe",
+    ]),
+    TopicProfile("movies", [
+        "movie", "film", "cinema", "best movie", "movie recommendation",
+    ]),
+    TopicProfile("books", [
+        "book", "reading", "novel", "author", "book recommendation",
+    ]),
+    TopicProfile("gaming", [
+        "gaming", "video game", "game", "playstation", "xbox",
+        "nintendo", "steam", "pc gaming",
+    ]),
+
+    # Music
+    TopicProfile("piano", [
+        "piano", "keyboard piano", "learn piano", "piano practice",
+        "digital piano", "piano keyboard",
+    ]),
+    TopicProfile("Guitar", [
+        "guitar", "acoustic guitar", "electric guitar", "guitar pedal",
+    ]),
+
+    # Pets
+    TopicProfile("dogs", ["dog", "puppy", "dog breed", "dog training"]),
+    TopicProfile("cats", ["cat", "kitten", "cat behavior"]),
+
+    # Cars
+    TopicProfile("whatcarshouldIbuy", [
+        "car", "vehicle", "suv", "sedan", "used car", "best car",
+        "buy car", "car recommendation",
+    ]),
+
+    # Housing
+    TopicProfile("renting", [
+        "apartment", "renting", "lease", "landlord", "rent",
+    ]),
+
+    # Photography
+    TopicProfile("photography", [
+        "photography", "photo", "portrait", "landscape photography",
+    ]),
+]
+
+
+# General-purpose subreddits tried when no specific route matches
+# and primary sources are down.
+_FALLBACK_SUBREDDITS = ["AskReddit", "NoStupidQuestions", "OutOfTheLoop"]
 
 
 class RedditProvider(Provider):
@@ -125,6 +316,29 @@ class RedditProvider(Provider):
             if result.ok:
                 all_results = list(result.results)
             else:
+                last_error = result.error
+
+        # If still nothing and no routes matched, try Arctic Shift
+        # with broad subreddits as a safety net
+        if not all_results and not subreddits:
+            for fallback_sub in _FALLBACK_SUBREDDITS:
+                result = await self._arctic_search(
+                    query, limit=limit, subreddit=fallback_sub,
+                    time_range=time_range,
+                )
+                if result.ok:
+                    all_results.extend(result.results)
+                    break
+
+        # Last resort: try Redlib (works without subreddit scope)
+        if not all_results:
+            for sub in (subreddits[:2] if subreddits else [""]):
+                result = await self._redlib_search(
+                    query, limit=limit, subreddit=sub, time_range=time_range,
+                )
+                if result.ok:
+                    all_results.extend(result.results)
+                    break
                 last_error = result.error
 
         # Post-filter for relevance to reduce Pullpush noise
@@ -235,7 +449,10 @@ class RedditProvider(Provider):
         subreddit: str = "",
         time_range: TimeRange = TimeRange.ALL,
     ) -> SearchResults:
-        path = f"/r/{subreddit}/search?q={query}&restrict_sr=on&sort=relevance&t=all"
+        if subreddit:
+            path = f"/r/{subreddit}/search?q={query}&restrict_sr=on&sort=relevance&t=all"
+        else:
+            path = f"/search?q={query}&sort=relevance&t=all"
 
         async with httpx.AsyncClient(timeout=_TIMEOUT, follow_redirects=True) as client:
             for base in _REDLIB_INSTANCES:
@@ -332,15 +549,8 @@ class RedditProvider(Provider):
 
     @staticmethod
     def _route_subreddits(query: str) -> list[str]:
-        """Pick relevant subreddits from query keywords."""
-        query_lower = query.lower()
-        subs: list[str] = []
-        for keyword, sub_list in SUBREDDIT_ROUTES.items():
-            if keyword in query_lower:
-                for s in sub_list:
-                    if s not in subs:
-                        subs.append(s)
-        return subs if subs else []
+        """Score query against subreddit profiles, return best matches."""
+        return score_route(query, SUBREDDIT_PROFILES, min_score=0.5, max_results=3)
 
     async def health_check(self) -> bool:
         try:

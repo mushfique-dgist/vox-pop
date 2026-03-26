@@ -29,6 +29,7 @@ class HackerNewsProvider(Provider):
     """Search HackerNews stories and comments via Algolia."""
 
     name = "hackernews"
+    supports_threads = True
     supports_time_filter = True
 
     async def search(

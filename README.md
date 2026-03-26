@@ -10,14 +10,14 @@
 
 ### Your LLM knows what textbooks say.<br>This tells it what people *actually* think.
 
-**HackerNews** &bull; **Reddit** &bull; **4chan** &bull; **Stack Exchange** &bull; **Telegram**
+**9 platforms** &bull; **Semantic routing** &bull; **LLM intelligence layer** &bull; **Zero API keys required**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10+-3776AB.svg)](https://python.org)
 [![MCP Compatible](https://img.shields.io/badge/MCP-Compatible-8A2BE2.svg)](https://modelcontextprotocol.io)
 [![Zero API Keys](https://img.shields.io/badge/API_Keys-Zero-brightgreen.svg)](#)
 
-[Install](#install) &bull; [Quick Start](#quick-start) &bull; [Platforms](#platforms) &bull; [MCP Server](#mcp-server) &bull; [Claude Code Plugin](#claude-code-plugin) &bull; [Roadmap](#roadmap)
+[Install](#install) &bull; [Quick Start](#quick-start) &bull; [Platforms](#platforms) &bull; [How Routing Works](#how-routing-works) &bull; [MCP Server](#mcp-server) &bull; [Claude Code Plugin](#claude-code-plugin) &bull; [Roadmap](#roadmap)
 
 </div>
 
@@ -87,7 +87,7 @@ That's it. No API keys. No config. No accounts.
 
 ## Quick Start
 
-**CLI** — search all platforms in one command:
+**CLI** — search all 9 platforms in one command:
 
 ```bash
 vox-pop search "should I learn Rust or Go"
@@ -168,29 +168,80 @@ asyncio.run(main())
 
 Every platform works out of the box. No tokens, no OAuth, no rate limit headaches.
 
-| | Platform | Source | Status |
-|:---:|---|---|:---:|
-| ![HN](https://img.shields.io/badge/Y-FF6600?style=flat-square) | **HackerNews** | [Algolia Search API](https://hn.algolia.com/api) | Stable |
-| ![Reddit](https://img.shields.io/badge/r/-FF4500?style=flat-square) | **Reddit** | [Pullpush](https://pullpush.io) + [Arctic Shift](https://arctic-shift.photon-reddit.com) + [Redlib](https://github.com/redlib-org/redlib) fallback | Stable |
-| ![4chan](https://img.shields.io/badge/4-008000?style=flat-square) | **4chan** | [Official JSON API](https://github.com/4chan/4chan-API) (since 2012) | Stable |
-| ![SE](https://img.shields.io/badge/SE-F48024?style=flat-square) | **Stack Exchange** | [Official API](https://api.stackexchange.com/docs) &mdash; 180+ communities | Stable |
-| ![TG](https://img.shields.io/badge/TG-26A5E4?style=flat-square) | **Telegram** | Public channel web preview (`t.me/s/`) | Stable |
-
-<details>
-<summary><strong>Smart routing</strong> — queries auto-route to the best platforms</summary>
+| | Platform | Source | Time Filter | Threads |
+|:---:|---|---|:---:|:---:|
+| ![HN](https://img.shields.io/badge/Y-FF6600?style=flat-square) | **HackerNews** | [Algolia Search API](https://hn.algolia.com/api) | Yes | Yes |
+| ![Reddit](https://img.shields.io/badge/r/-FF4500?style=flat-square) | **Reddit** | [Pullpush](https://pullpush.io) + [Arctic Shift](https://arctic-shift.photon-reddit.com) + [Redlib](https://github.com/redlib-org/redlib) fallback | Yes | &mdash; |
+| ![4chan](https://img.shields.io/badge/4-008000?style=flat-square) | **4chan** | [Official JSON API](https://github.com/4chan/4chan-API) (since 2012) | &mdash; | Yes |
+| ![SE](https://img.shields.io/badge/SE-F48024?style=flat-square) | **Stack Exchange** | [Official API](https://api.stackexchange.com/docs) &mdash; 180+ communities | Yes | Yes |
+| ![TG](https://img.shields.io/badge/TG-26A5E4?style=flat-square) | **Telegram** | Public channel web preview (`t.me/s/`) | &mdash; | &mdash; |
+| ![Lobsters](https://img.shields.io/badge/L-AC0000?style=flat-square) | **Lobsters** | [lobste.rs](https://lobste.rs) JSON API + search scraping | Yes | &mdash; |
+| ![Lemmy](https://img.shields.io/badge/LE-00BC8C?style=flat-square) | **Lemmy** | [Public REST API](https://join-lemmy.org/api/) &mdash; federated instances | Yes | Yes |
+| ![LW](https://img.shields.io/badge/LW-5F9B65?style=flat-square) | **LessWrong** | [GraphQL API](https://www.lesswrong.com/graphql) | Yes | Yes |
+| ![Forums](https://img.shields.io/badge/XF-E7700D?style=flat-square) | **XenForo Forums** | HTML scraping (Head-Fi, AnandTech, etc.) | &mdash; | &mdash; |
 
 <br>
 
-| Your question is about... | Searched automatically |
-|---|---|
-| Tech / programming | HackerNews, Stack Overflow, Reddit |
-| Health / fitness / appearance | Reddit, 4chan /fit/, SE Fitness |
-| Travel / living abroad | Reddit, Telegram |
-| Finance / crypto | Reddit, 4chan /biz/, HackerNews |
-| Career / workplace | Reddit, SE Workplace, HackerNews |
-| Cooking / food | Reddit, SE Cooking |
+## How Routing Works
 
-Override anytime with `--platforms reddit,hackernews`
+Queries can be anything — a single word, a paragraph, an essay-length D&D rules question. vox-pop understands them all through a **four-tier routing system**:
+
+```
+User query: "i was looking into a solid laptop for linux
+             something from hp, what would a savvy person pick"
+                                    │
+    ┌───────────────────────────────▼──────────────────────────────┐
+    │  Tier 1: MCP Hints                                          │
+    │  Calling LLM provides routing_hints directly                │
+    │  (skips all other tiers)                                    │
+    ├─────────────────────────────────────────────────────────────┤
+    │  Tier 2: LLM Query Rewrite          ← like Perplexity      │
+    │  Cheap LLM call rewrites query to search-optimized form     │
+    │  "hp laptop linux compatibility" + routes to communities    │
+    │  Supports: Anthropic, OpenAI, Ollama (local/free)           │
+    ├─────────────────────────────────────────────────────────────┤
+    │  Tier 3: Semantic Embeddings         ← free, no API key     │
+    │  FastEmbed (33MB model) understands meaning, not keywords   │
+    │  Dynamic catalog: 77 4chan boards + 180 SE sites + static   │
+    │  "contradictory spell behaviour" → SE:rpg, r/DnD, /tg/     │
+    ├─────────────────────────────────────────────────────────────┤
+    │  Tier 4: Broad Defaults                                     │
+    │  Search popular destinations everywhere                     │
+    └─────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+    Routes to: r/buildapc, r/linux, r/hardware │ /g/
+               SE:hardwarerecs, SE:askubuntu │ lemmy:linux@lemmy.ml
+```
+
+**Tier 2** works like Perplexity/ChatGPT Search — the LLM rewrites your conversational query into a clean search string and picks the right communities. Set any of these env vars to enable:
+
+```bash
+ANTHROPIC_API_KEY=...   # Uses Claude Haiku (~$0.0003/query)
+OPENAI_API_KEY=...      # Uses GPT-4o Mini
+OLLAMA_HOST=...         # Uses local Ollama (free)
+```
+
+**Tier 3** runs entirely locally with zero API keys. A 33MB embedding model understands that "contradictory spell behaviour on a creature" means tabletop RPG rules — zero shared keywords needed. On first run, it fetches all 4chan boards and Stack Exchange sites dynamically, embeds everything, and caches to disk.
+
+| | Cold start | Warm start | Singleton |
+|---|---|---|---|
+| **Tier 3 timing** | ~7s | ~1.3s | instant |
+
+**No configuration needed.** If an LLM key is set, Tier 2 is used. Otherwise Tier 3 handles it. If fastembed isn't installed, Tier 4 (broad search) still works.
+
+<details>
+<summary><strong>Routing examples</strong></summary>
+
+<br>
+
+| Query | Routes to |
+|---|---|
+| "best hp laptop for linux" | r/buildapc, r/linux, r/hardware, /g/, SE:hardwarerecs, SE:askubuntu |
+| "contradictory spell effects on a creature" | r/dndnext, r/DnD, /tg/, SE:rpg |
+| "best mechanical keyboard for programming" | r/MechanicalKeyboards, /g/, SE:hardwarerecs |
+| "what are the risks of yield farming" | r/CryptoCurrency, SE:tezos, telegram:ethereum |
+| "how to make authentic kimchi jjigae" | r/Cooking, /ck/ |
 
 </details>
 
@@ -211,7 +262,7 @@ Works with **Claude Code**, **Cursor**, **Windsurf**, and any MCP-compatible cli
 }
 ```
 
-Your LLM gets three tools:
+Your LLM gets four tools:
 
 | Tool | What it does |
 |---|---|
@@ -219,6 +270,14 @@ Your LLM gets three tools:
 | `search_opinions_perspective` | **Then vs Now** — historical + recent opinions side by side |
 | `get_thread_opinions` | Dive into a specific thread's comments |
 | `list_available_platforms` | Check what's available and healthy |
+
+The `routing_hints` parameter lets the calling LLM specify exactly where to search:
+
+```
+routing_hints: "reddit:MechanicalKeyboards,4chan:g,stackexchange:hardwarerecs"
+```
+
+When no hints are provided, the [routing system](#how-routing-works) handles it automatically.
 
 <br>
 
@@ -244,17 +303,18 @@ Manual search: `/vox-search "your query"`
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────┐
-│  Layer 3: Claude Code / MCP Client          │  You see this
-│  Auto-triggering skill + /vox-search        │
-├─────────────────────────────────────────────┤
-│  Layer 2: MCP Server                        │  Any LLM can use this
-│  search_opinions() + get_thread_opinions()  │
-├─────────────────────────────────────────────┤
-│  Layer 1: Python Library                    │  The engine
-│  5 providers with fallback chains           │
-│  HN · Reddit · 4chan · SE · Telegram        │
-└─────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────┐
+│  Layer 3: Claude Code / MCP Client              │  You see this
+│  Auto-triggering skill + /vox-search            │
+├─────────────────────────────────────────────────┤
+│  Layer 2: MCP Server                            │  Any LLM can use this
+│  search_opinions() + perspectives + threads     │
+├─────────────────────────────────────────────────┤
+│  Layer 1: Python Library + Smart Router         │  The engine
+│  9 providers · 4-tier routing · fallback chains │
+│  HN · Reddit · 4chan · SE · Telegram            │
+│  Lobsters · Lemmy · LessWrong · XenForo         │
+└─────────────────────────────────────────────────┘
 ```
 
 Each provider implements **automatic fallback** — if one source is down, the next is tried. You always get results.
@@ -266,20 +326,18 @@ Each provider implements **automatic fallback** — if one source is down, the n
 | Version | What's coming |
 |:---:|---|
 | **v0.2** | **Regional** — DC Inside (Korea), Naver, 5ch (Japan) |
-| **v0.3** | **Niche** — TikTok, Discord, YouTube comments, Looksmax, XenForo forums |
+| **v0.3** | **Niche** — TikTok, Discord, YouTube comments, Looksmax |
 | **v1.0** | **Synthesis** — built-in consensus/controversy detection, confidence scores, trend tracking |
 
 <br>
 
 ## Contributing
 
-The easiest way to contribute:
-
 ```
-New provider?     → Follow the pattern in src/vox_pop/providers/base.py
-Better routing?   → Improve keyword → platform mapping in any provider
-Dead instance?    → Open an issue with the instance URL
-Regional platform → DC Inside, Naver, 5ch, VK, Bilibili — all welcome
+New provider?       → Subclass Provider in src/vox_pop/providers/base.py
+Better routing?     → Add destinations to DESTINATIONS in router.py
+Dead instance?      → Open an issue with the instance URL
+Regional platform?  → DC Inside, Naver, 5ch, VK, Bilibili — all welcome
 ```
 
 <br>
@@ -289,9 +347,10 @@ Regional platform → DC Inside, Naver, 5ch, VK, Bilibili — all welcome
 | | |
 |---|---|
 | **Data access** | Public data only — official APIs and public web endpoints. No login-wall scraping. |
-| **Credentials** | Zero stored. Optional keys (e.g. SE) passed at runtime, never persisted. |
+| **Credentials** | Zero stored. Optional LLM keys for routing only, passed via env vars, never persisted. |
 | **Rate limits** | Respected per-platform. Built-in concurrency guards. |
 | **User-Agent** | Transparent: `vox-pop/0.1` in all requests. |
+| **Caching** | API responses and embeddings cached locally at `~/.cache/vox-pop/`. No data sent to third parties. |
 | **PII** | Author names from public posts included for attribution only. Never stored. |
 
 <br>

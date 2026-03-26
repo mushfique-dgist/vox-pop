@@ -26,19 +26,43 @@ from vox_pop.providers.base import (
     Provider,
     SearchResults,
     TimeRange,
+    TopicProfile,
+    extract_query_keywords,
+    score_route,
     strip_html,
 )
 
 _BASE = "https://t.me/s"
 _TIMEOUT = 15.0
 
+# Fallback channels for unrouted queries.
+_FALLBACK_CHANNELS = ["bbcnews", "techcrunch"]
+
 # Known public channels by topic. Community-contributed.
-CHANNEL_ROUTES: dict[str, list[str]] = {
-    "ai": ["OpenAI", "anthropic_ai"],
-    "tech": ["duaborern_tech", "techcrunch"],
-    "crypto": ["bitcoin", "ethereum"],
-    "news": ["bbcnews", "caborernnn"],
-}
+CHANNEL_PROFILES: list[TopicProfile] = [
+    TopicProfile("OpenAI", [
+        "ai", "artificial intelligence", "openai", "gpt", "chatgpt",
+        "machine learning", "deep learning",
+    ]),
+    TopicProfile("anthropic_ai", [
+        "ai", "anthropic", "claude", "artificial intelligence",
+    ]),
+    TopicProfile("duaborern_tech", [
+        "tech", "technology", "startup", "silicon valley",
+    ]),
+    TopicProfile("techcrunch", [
+        "tech", "technology", "startup", "funding", "tech news",
+    ]),
+    TopicProfile("bitcoin", [
+        "crypto", "cryptocurrency", "bitcoin", "btc", "blockchain",
+    ]),
+    TopicProfile("ethereum", [
+        "crypto", "cryptocurrency", "ethereum", "eth", "defi", "smart contract",
+    ]),
+    TopicProfile("bbcnews", [
+        "news", "world news", "breaking news", "current events",
+    ]),
+]
 
 # Regex to extract messages from t.me/s/ HTML.
 # Each message is wrapped in a div with class "tgme_widget_message_text"
@@ -72,13 +96,9 @@ class TelegramProvider(Provider):
         if not channels:
             channels = self._route_channels(query)
 
+        # Always try general channels if no specific match.
         if not channels:
-            return SearchResults(
-                platform=self.name,
-                query=query,
-                error="No channels specified and could not auto-route. "
-                      "Pass channels=['channel_name'] explicitly.",
-            )
+            channels = _FALLBACK_CHANNELS
 
         all_results: list[OpinionResult] = []
         errors: list[str] = []
@@ -86,8 +106,10 @@ class TelegramProvider(Provider):
         for channel in channels[:5]:
             try:
                 msgs = await self._fetch_channel(channel)
-                # Client-side filter by query keywords
-                query_words = set(query.lower().split())
+                # Client-side filter by meaningful keywords
+                query_words = extract_query_keywords(query)
+                if not query_words:
+                    query_words = set(query.lower().split())
                 for msg in msgs:
                     text_lower = msg.text.lower()
                     matched = sum(1 for w in query_words if w in text_lower)
@@ -153,15 +175,8 @@ class TelegramProvider(Provider):
 
     @staticmethod
     def _route_channels(query: str) -> list[str]:
-        """Pick relevant Telegram channels from query keywords."""
-        query_lower = query.lower()
-        channels: list[str] = []
-        for keyword, channel_list in CHANNEL_ROUTES.items():
-            if keyword in query_lower:
-                for c in channel_list:
-                    if c not in channels:
-                        channels.append(c)
-        return channels
+        """Score query against channel profiles, return best matches."""
+        return score_route(query, CHANNEL_PROFILES, min_score=0.5, max_results=5)
 
     async def health_check(self) -> bool:
         try:

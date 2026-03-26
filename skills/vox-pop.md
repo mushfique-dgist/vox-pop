@@ -108,20 +108,65 @@ can contribute to water retention in some individuals."
 
 **Bad**: "Here are 10 Reddit posts about face bloating: [raw dump]"
 
-## Platform Routing Guide
+## Routing Hints — CRITICAL for Quality
+
+When using the MCP `search_opinions` tool, **always pass `routing_hints`** to direct each
+platform to the most relevant communities. This is the single biggest quality lever.
+
+The format is comma-separated `platform:destination` pairs:
+
+```
+routing_hints: "reddit:fitness,reddit:loseit,4chan:fit,stackexchange:fitness"
+```
+
+### How to Choose Destinations
+
+Think about where real humans would discuss the query:
+
+| Query Topic | routing_hints |
+|---|---|
+| Gym/fitness/workout | `reddit:fitness,reddit:bodybuilding,4chan:fit,lemmy:fitness@lemmy.world` |
+| Programming/code | `reddit:programming,4chan:g,stackexchange:stackoverflow,lemmy:programming@programming.dev` |
+| Living in Berlin | `reddit:berlin,reddit:germany,4chan:int,lemmy:asklemmy@lemmy.ml` |
+| Best headphones | `reddit:headphones,reddit:audiophile,forums:headfi` |
+| Piano/keyboard music | `reddit:piano,reddit:WeAreTheMusicMakers,4chan:mu` |
+| Mechanical keyboards | `reddit:MechanicalKeyboards,4chan:g` |
+| Crypto/bitcoin | `reddit:CryptoCurrency,reddit:Bitcoin,4chan:biz,telegram:bitcoin` |
+| Career advice | `reddit:careerguidance,reddit:cscareerquestions,4chan:adv,stackexchange:workplace` |
+| Travel/backpacking | `reddit:travel,reddit:solotravel,4chan:trv,stackexchange:travel` |
+| Skincare/appearance | `reddit:SkincareAddiction,reddit:mewing,4chan:fit` |
+| Cooking/recipes | `reddit:Cooking,reddit:MealPrepSunday,4chan:ck,stackexchange:cooking` |
+| AI/alignment/safety | `reddit:MachineLearning,4chan:g,telegram:OpenAI` |
+| PC hardware/CPU/GPU | `reddit:buildapc,reddit:hardware,4chan:g,forums:anandtech` |
+| Linux/open source | `reddit:linux,lemmy:linux@lemmy.ml,lemmy:technology@lemmy.world` |
+| Privacy/selfhosting | `reddit:selfhosted,reddit:privacy,lemmy:privacy@lemmy.ml,lemmy:selfhosted@lemmy.world` |
+| Gaming | `reddit:gaming,reddit:pcgaming,4chan:v,lemmy:gaming@lemmy.world` |
+
+**Key rules:**
+- Be specific with subreddits — `reddit:SkincareAddiction` not just `reddit:skincare`
+- Include 2-4 subreddits per query for Reddit (it's the richest source)
+- Match 4chan boards by topic: `/fit/` for fitness, `/g/` for tech, `/mu/` for music, etc.
+- If you're unsure, omit `routing_hints` — auto-detection will kick in as fallback
+
+### Platform Routing Guide
 
 Use this to decide which platforms to prioritize:
 
 | Query Type | Best Platforms |
 |---|---|
-| Tech/programming opinions | hackernews, stackexchange, reddit |
-| Health/fitness/appearance | reddit, 4chan (/fit/) |
-| Travel/living abroad | reddit, telegram |
-| Product recommendations | reddit, hackernews |
+| Tech/programming opinions | hackernews, stackexchange, reddit, lobsters, lemmy |
+| AI/ML/alignment | lesswrong, hackernews, reddit, lemmy |
+| Headphones/audio | forums (Head-Fi), reddit, 4chan |
+| PC hardware/benchmarks | forums (AnandTech), reddit, 4chan |
+| Health/fitness/appearance | reddit, 4chan (/fit/), lemmy |
+| Travel/living abroad | reddit, telegram, lemmy |
+| Product recommendations | reddit, hackernews, forums |
 | Career/workplace | reddit, stackexchange (workplace), hackernews |
 | Finance/investing | reddit, 4chan (/biz/), hackernews |
 | Food/cooking | reddit, stackexchange (cooking) |
-| Gaming | reddit, 4chan (/v/) |
+| Gaming | reddit, 4chan (/v/), lemmy |
+| Linux/open source | lobsters, lemmy, reddit, stackexchange |
+| Privacy/self-hosting | lemmy, reddit, lobsters |
 
 ## Important Rules
 

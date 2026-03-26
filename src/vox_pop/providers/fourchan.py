@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import asyncio
 import re
+from datetime import datetime, timezone
 from typing import Any
 
 import httpx
@@ -26,7 +27,10 @@ from vox_pop.providers.base import (
     Provider,
     SearchResults,
     TimeRange,
+    TopicProfile,
+    extract_query_keywords,
     safe_int,
+    score_route,
     strip_html,
 )
 
@@ -34,37 +38,90 @@ _BASE = "https://a.4cdn.org"
 _THREAD_URL = "https://boards.4chan.org/{board}/thread/{no}"
 _TIMEOUT = 15.0
 
-# Mapping from topic keywords to relevant boards.
-# Used when no explicit board is given.
-BOARD_ROUTES: dict[str, list[str]] = {
-    "tech": ["g"],
-    "programming": ["g"],
-    "software": ["g"],
-    "ai": ["g"],
-    "fitness": ["fit"],
-    "health": ["fit"],
-    "diet": ["fit", "ck"],
-    "skincare": ["fit"],
-    "cooking": ["ck"],
-    "food": ["ck"],
-    "travel": ["trv"],
-    "science": ["sci"],
-    "math": ["sci"],
-    "business": ["biz"],
-    "finance": ["biz"],
-    "crypto": ["biz"],
-    "fashion": ["fa"],
-    "advice": ["adv"],
-    "career": ["adv"],
-    "anime": ["a"],
-    "gaming": ["v"],
-    "music": ["mu"],
-    "film": ["tv"],
-    "diy": ["diy"],
-    "auto": ["o"],
-    "photography": ["p"],
-    "politics": ["pol"],
-}
+# Board profiles: each board has a rich keyword set.
+# Multi-word phrases score higher, enabling context disambiguation.
+# "keyboard piano" routes to /mu/, "mechanical keyboard" routes to /g/.
+BOARD_PROFILES: list[TopicProfile] = [
+    TopicProfile("g", [
+        "tech", "technology", "programming", "software", "computer", "laptop",
+        "phone", "smartphone", "headphone", "earbuds", "speaker", "monitor",
+        "mechanical keyboard", "keyboard", "mouse", "gpu", "cpu", "pc",
+        "ai", "artificial intelligence", "machine learning", "deep learning",
+        "linux", "windows", "mac", "macos", "android", "ios",
+        "app", "browser", "server", "cloud", "database", "api",
+        "rust", "python", "javascript", "golang", "c++",
+        "open source", "privacy", "vpn", "security",
+    ]),
+    TopicProfile("fit", [
+        "fitness", "gym", "workout", "exercise", "lifting", "bodybuilding",
+        "weight loss", "lose weight", "bulk", "bulking", "cutting", "cut",
+        "muscle", "strength", "cardio", "running", "jogging", "marathon",
+        "protein", "creatine", "supplement", "diet", "calorie",
+        "skincare", "skin care", "acne", "face", "bloat", "mewing",
+        "posture", "flexibility", "stretching", "yoga",
+        "body fat", "lean", "abs", "chest", "squat", "deadlift", "bench press",
+    ]),
+    TopicProfile("ck", [
+        "cooking", "food", "recipe", "baking", "meal prep",
+        "kitchen", "restaurant", "chef", "cuisine",
+        "diet", "nutrition", "eating",
+    ]),
+    TopicProfile("trv", [
+        "travel", "traveling", "backpacking", "tourism", "flight",
+        "hotel", "hostel", "country", "abroad", "expat", "visa",
+    ]),
+    TopicProfile("sci", [
+        "science", "physics", "chemistry", "biology", "math", "mathematics",
+        "research", "quantum", "space", "astronomy",
+    ]),
+    TopicProfile("biz", [
+        "business", "finance", "investing", "investment", "stock", "stocks",
+        "crypto", "cryptocurrency", "bitcoin", "ethereum", "trading",
+        "startup", "entrepreneur", "money", "salary", "passive income",
+    ]),
+    TopicProfile("fa", [
+        "fashion", "style", "clothing", "outfit", "sneaker", "shoes",
+        "streetwear", "wardrobe", "designer",
+    ]),
+    TopicProfile("adv", [
+        "advice", "career", "career advice", "relationship", "dating",
+        "life advice", "help", "decision",
+    ]),
+    TopicProfile("a", [
+        "anime", "manga", "otaku", "waifu", "seasonal anime",
+    ]),
+    TopicProfile("v", [
+        "gaming", "video game", "game", "playstation", "xbox", "nintendo",
+        "steam", "pc gaming", "esports",
+    ]),
+    TopicProfile("mu", [
+        "music", "album", "song", "band", "guitar", "piano",
+        "keyboard piano", "instrument", "vinyl", "hip hop", "rock",
+        "playlist", "concert",
+    ]),
+    TopicProfile("tv", [
+        "film", "movie", "cinema", "tv show", "television", "series",
+        "director", "actor", "netflix", "streaming",
+    ]),
+    TopicProfile("diy", ["diy", "woodworking", "home improvement", "project"]),
+    TopicProfile("o", ["auto", "car", "vehicle", "driving", "engine", "motorcycle"]),
+    TopicProfile("p", ["photography", "camera", "photo", "lens", "dslr"]),
+    TopicProfile("pol", ["politics", "political", "election", "government", "policy"]),
+    TopicProfile("int", [
+        "country", "city", "move to", "living in", "culture",
+        "language", "europe", "asia", "america", "international",
+        "expat", "immigrant", "immigration",
+    ]),
+    TopicProfile("r9k", [
+        "lonely", "social", "anxiety", "introvert", "neet",
+    ]),
+]
+
+# Broad boards searched when no specific route matches.
+# 4chan's catalog is small enough that the real filtering happens
+# locally via keyword matching — casting a wider net costs almost
+# nothing (one HTTP request per board) and prevents false negatives.
+_FALLBACK_BOARDS = ["g", "adv", "int", "pol"]
 
 # 4chan asks for max 1 request/second.
 _rate_lock = asyncio.Lock()
@@ -75,6 +132,7 @@ class FourChanProvider(Provider):
 
     name = "4chan"
     supports_time_filter = False  # Catalog is inherently current-only
+    supports_threads = True
 
     async def search(
         self,
@@ -87,6 +145,12 @@ class FourChanProvider(Provider):
     ) -> SearchResults:
         if not boards:
             boards = self._route_boards(query)
+
+        # If no confident match, search general-purpose boards.
+        # The local keyword filter in _search_board is the real
+        # quality gate — routing just picks which catalogs to fetch.
+        if not boards:
+            boards = _FALLBACK_BOARDS
 
         all_results: list[OpinionResult] = []
         errors: list[str] = []
@@ -145,7 +209,7 @@ class FourChanProvider(Provider):
                     author=post.get("name", "Anonymous"),
                     score=0,  # 4chan has no voting
                     num_replies=0,
-                    created_at=str(post.get("time", "")),
+                    created_at=self._format_time(post.get("time")),
                 )
             )
 
@@ -169,7 +233,10 @@ class FourChanProvider(Provider):
                 resp.raise_for_status()
                 catalog = resp.json()
 
-        query_words = set(query.lower().split())
+        query_words = extract_query_keywords(query)
+        if not query_words:
+            # All stop words — use raw words as last resort
+            query_words = set(query.lower().split())
         results: list[OpinionResult] = []
 
         for page in catalog:
@@ -178,7 +245,7 @@ class FourChanProvider(Provider):
                 comment = strip_html(thread.get("com", ""))
                 haystack = f"{subject} {comment}".lower()
 
-                # Require at least half the query words to match
+                # Require at least half the meaningful query words to match
                 matched = sum(1 for w in query_words if w in haystack)
                 if matched < max(1, len(query_words) // 2):
                     continue
@@ -192,7 +259,7 @@ class FourChanProvider(Provider):
                         author=thread.get("name", "Anonymous"),
                         score=0,
                         num_replies=safe_int(thread.get("replies")),
-                        created_at=str(thread.get("time", "")),
+                        created_at=self._format_time(thread.get("time")),
                     )
                 )
                 if len(results) >= limit:
@@ -202,17 +269,15 @@ class FourChanProvider(Provider):
 
     @staticmethod
     def _route_boards(query: str) -> list[str]:
-        """Guess the most relevant boards from query keywords."""
-        query_lower = query.lower()
-        boards: list[str] = []
-        for keyword, board_list in BOARD_ROUTES.items():
-            if keyword in query_lower:
-                for b in board_list:
-                    if b not in boards:
-                        boards.append(b)
+        """Score query against board profiles and return best matches."""
+        return score_route(query, BOARD_PROFILES, min_score=0.5, max_results=3)
 
-        # Default to /g/ (tech) if nothing matched — our primary audience
-        return boards if boards else ["g"]
+    @staticmethod
+    def _format_time(ts: Any) -> str:
+        """Convert Unix timestamp to ISO date string."""
+        if isinstance(ts, (int, float)) and ts > 0:
+            return datetime.fromtimestamp(ts, tz=timezone.utc).strftime("%Y-%m-%d")
+        return ""
 
     async def health_check(self) -> bool:
         try:

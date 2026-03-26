@@ -137,6 +137,7 @@ class Provider(ABC):
 
     name: str = "unknown"
     supports_time_filter: bool = False
+    supports_threads: bool = False
 
     @abstractmethod
     async def search(
@@ -170,6 +171,45 @@ class Provider(ABC):
 
 # ── Shared utilities ────────────────────────────────────────────
 
+# Common English stop words filtered from keyword matching.
+# These match nearly everything and produce false positives.
+STOP_WORDS: set[str] = {
+    # Grammatical
+    "a", "an", "the", "is", "are", "was", "were", "be", "been", "being",
+    "i", "me", "my", "we", "our", "you", "your", "he", "she", "it",
+    "they", "them", "his", "her", "its", "do", "does", "did",
+    "have", "has", "had", "will", "would", "could", "should", "shall",
+    "can", "may", "might", "must", "to", "of", "in", "on", "at", "by",
+    "for", "with", "about", "from", "as", "into", "through", "during",
+    "before", "after", "and", "but", "or", "nor", "not", "no", "so",
+    "if", "then", "than", "too", "very", "just", "also",
+    "what", "which", "who", "whom", "this", "that", "these", "those",
+    "how", "when", "where", "why",
+    "all", "each", "every", "any", "some", "many", "much", "more", "most",
+    "am", "vs", "get", "got", "way", "best", "good", "bad",
+    # Conversational filler — common in LLM queries, useless for search APIs
+    "something", "someone", "anything", "anyone", "everything", "everyone",
+    "looking", "want", "wanted", "need", "needed", "think", "thinking",
+    "know", "knew", "try", "trying", "tried", "using", "used", "use",
+    "going", "like", "really", "actually", "basically", "probably",
+    "instead", "person", "people", "thing", "things", "stuff",
+    "pretty", "quite", "solid", "great", "nice", "sure", "right",
+    "pick", "choice", "choose", "option", "recommend", "suggestion",
+    "tell", "help", "please", "thanks", "hi", "hello", "hey",
+    "savvy", "wondering", "curious", "anyone", "somebody",
+}
+
+_PUNCT_RE = re.compile(r"[^\w\s-]")
+
+
+def extract_query_keywords(query: str) -> set[str]:
+    """Extract meaningful keywords from a query, filtering stop words."""
+    # Strip punctuation first so "hp," becomes "hp"
+    cleaned = _PUNCT_RE.sub(" ", query.lower())
+    words = set(cleaned.split())
+    return {w for w in words if w not in STOP_WORDS and len(w) > 1}
+
+
 _HTML_TAG_RE = re.compile(r"<[^>]+>")
 _MULTI_SPACE_RE = re.compile(r"\s+")
 
@@ -191,6 +231,21 @@ def safe_int(value: Any, default: int = 0) -> int:
         return default
 
 
+def optimize_query(query: str, *, max_terms: int = 8) -> str:
+    """Trim a long query to its most meaningful terms for search APIs.
+
+    LLM queries can be essay-length. Search APIs work best with 5-10
+    focused terms. This extracts meaningful keywords and truncates.
+    """
+    words = query.split()
+    if len(words) <= max_terms:
+        return query
+    keywords = extract_query_keywords(query)
+    if keywords:
+        return " ".join(list(keywords)[:max_terms])
+    return " ".join(words[:max_terms])
+
+
 def relevance_filter(
     results: list[OpinionResult],
     query: str,
@@ -203,9 +258,7 @@ def relevance_filter(
     query words appear in the result text. Helps eliminate noise from
     broad full-text search APIs like Pullpush.
     """
-    query_words = set(query.lower().split())
-    # Remove very short/common words
-    query_words = {w for w in query_words if len(w) > 2}
+    query_words = extract_query_keywords(query)
     if not query_words:
         return results
 
@@ -218,3 +271,100 @@ def relevance_filter(
             filtered.append(r)
 
     return filtered
+
+
+# ── LLM routing hints parser ──────────────────────────────────
+
+# Maps platform prefixes in routing_hints to provider kwargs.
+_HINT_PREFIX_TO_KWARG: dict[str, str] = {
+    "reddit": "subreddits",
+    "4chan": "boards",
+    "stackexchange": "sites",
+    "telegram": "channels",
+    "lemmy": "communities",
+    "forums": "forum_ids",
+}
+
+
+def parse_routing_hints(hints: str) -> dict[str, list[str]]:
+    """Parse an LLM-provided routing hints string into provider kwargs.
+
+    Format: comma-separated ``platform:destination`` pairs.
+    Example: ``"reddit:fitness,reddit:loseit,4chan:fit,stackexchange:health"``
+
+    Returns a dict like ``{"subreddits": ["fitness", "loseit"], "boards": ["fit"]}``.
+    Unknown platform prefixes are silently ignored.
+    """
+    if not hints or not hints.strip():
+        return {}
+
+    by_platform: dict[str, list[str]] = {}
+    for part in hints.split(","):
+        part = part.strip()
+        if ":" not in part:
+            continue
+        prefix, dest = part.split(":", 1)
+        prefix = prefix.strip().lower()
+        dest = dest.strip()
+        if not dest:
+            continue
+        kwarg = _HINT_PREFIX_TO_KWARG.get(prefix)
+        if kwarg:
+            by_platform.setdefault(kwarg, []).append(dest)
+
+    return by_platform
+
+
+# ── Scoring-based topic router ─────────────────────────────────
+
+@dataclass
+class TopicProfile:
+    """A destination (board, subreddit, SE site, channel) with keywords.
+
+    Keywords can be multi-word phrases. Longer phrase matches score
+    higher — this naturally handles context disambiguation.
+    For example, "piano keyboard" will score /mu/ higher than /g/
+    because "piano" matches music keywords while both share "keyboard".
+    """
+
+    id: str  # e.g. "fit", "MechanicalKeyboards", "stackoverflow"
+    keywords: list[str]
+
+
+def score_route(
+    query: str,
+    profiles: list[TopicProfile],
+    *,
+    min_score: float = 0.5,
+    max_results: int = 3,
+) -> list[str]:
+    """Score *query* against topic profiles, return ranked destination IDs.
+
+    Scoring:
+      - Each keyword that appears in the query adds points
+      - Multi-word keywords score more (word count as weight)
+      - This handles synonyms, phrases, and context naturally
+
+    A query "best piano keyboard for beginners" scores:
+      - /mu/ profile (has "piano", "music", "instrument"): "piano" matches → 1.0
+      - /g/ profile (has "keyboard", "tech"): "keyboard" matches → 1.0
+      - r/piano (has "piano", "keyboard piano"): "piano" → 1.0, "keyboard piano" → 2.0
+      → r/piano wins because the phrase "keyboard piano" is a stronger signal
+
+    Returns IDs sorted by score descending, filtered by min_score.
+    """
+    query_lower = query.lower()
+    scored: list[tuple[str, float]] = []
+
+    for profile in profiles:
+        score = 0.0
+        for kw in profile.keywords:
+            if kw.lower() in query_lower:
+                # Multi-word phrases score higher (more specific)
+                score += len(kw.split())
+        if score >= min_score:
+            scored.append((profile.id, score))
+
+    # Sort by score descending
+    scored.sort(key=lambda x: x[1], reverse=True)
+    return [pid for pid, _ in scored[:max_results]]

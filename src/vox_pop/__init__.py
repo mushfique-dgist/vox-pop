@@ -14,12 +14,26 @@ from vox_pop.providers.base import (
     SearchResults,
     TimeRange,
 )
-from vox_pop.core import search, search_multiple, search_with_perspective
+from vox_pop.core import (
+    format_context,
+    format_perspective,
+    get_default_providers,
+    get_provider,
+    list_providers,
+    search,
+    search_multiple,
+    search_with_perspective,
+)
 
 __all__ = [
     "search",
     "search_multiple",
     "search_with_perspective",
+    "format_context",
+    "format_perspective",
+    "get_default_providers",
+    "get_provider",
+    "list_providers",
     "OpinionResult",
     "PerspectiveResults",
     "SearchResults",

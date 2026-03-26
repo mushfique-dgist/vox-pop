@@ -14,6 +14,7 @@ import argparse
 import asyncio
 import sys
 
+from vox_pop import __version__
 from vox_pop.core import (
     format_context,
     format_perspective,
@@ -29,6 +30,9 @@ def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(
         prog="vox-pop",
         description="Public opinion for LLMs — zero API keys.",
+    )
+    parser.add_argument(
+        "--version", "-V", action="version", version=f"%(prog)s {__version__}",
     )
     sub = parser.add_subparsers(dest="command")
 
@@ -80,16 +84,35 @@ def main(argv: list[str] | None = None) -> None:
 
 
 async def _cmd_search(args: argparse.Namespace) -> None:
+    if not args.query or not args.query.strip():
+        print("Error: search query cannot be empty.", file=sys.stderr)
+        sys.exit(1)
+
     providers = _resolve_providers(args.platforms)
+
+    # Smart routing: LLM (if API key available) → platform metadata → provider fallback
+    from vox_pop.router import route_query
+
+    route = await route_query(args.query)
+    route_kwargs = route.to_kwargs()
+
+    if route.has_routes:
+        print(f"⟫ Routing: {route.summary()}", file=sys.stderr)
+
+    # Use LLM-rewritten search query when available (Tier 2),
+    # fall back to original query (providers optimize internally)
+    search_q = route.search_query or args.query
 
     if args.perspective:
         results = await search_with_perspective(
-            args.query, providers=providers, limit_per_period=args.limit,
+            search_q, providers=providers, limit_per_period=args.limit,
+            **route_kwargs,
         )
         print(format_perspective(results, max_per_period=args.limit))
     else:
         results = await search_multiple(
-            args.query, providers=providers, limit_per_platform=args.limit,
+            search_q, providers=providers, limit_per_platform=args.limit,
+            **route_kwargs,
         )
         print(format_context(results, max_per_platform=args.limit))
 
@@ -99,6 +122,14 @@ async def _cmd_thread(args: argparse.Namespace) -> None:
         provider = get_provider(args.platform)
     except KeyError:
         print(f"Unknown platform: {args.platform}", file=sys.stderr)
+        sys.exit(1)
+
+    if not provider.supports_threads:
+        print(
+            f"Thread retrieval is not supported for {args.platform}. "
+            f"Supported: hackernews, 4chan, stackexchange, lemmy, lesswrong",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     comments = await provider.get_thread(args.thread_id, limit=args.limit)

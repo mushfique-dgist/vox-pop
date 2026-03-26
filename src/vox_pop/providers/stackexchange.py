@@ -13,42 +13,93 @@ from typing import Any
 
 import httpx
 
+import html as html_mod
+
 from vox_pop.providers.base import (
     OpinionResult,
     Provider,
     SearchResults,
     TimeRange,
+    TopicProfile,
+    optimize_query,
     safe_int,
+    score_route,
     strip_html,
 )
 
 _BASE = "https://api.stackexchange.com/2.3"
 _TIMEOUT = 15.0
 
-SITE_ROUTES: dict[str, list[str]] = {
-    "programming": ["stackoverflow"],
-    "code": ["stackoverflow"],
-    "python": ["stackoverflow"],
-    "javascript": ["stackoverflow"],
-    "rust": ["stackoverflow"],
-    "go": ["stackoverflow"],
-    "server": ["serverfault"],
-    "linux": ["unix", "askubuntu"],
-    "fitness": ["fitness"],
-    "health": ["health"],
-    "cooking": ["cooking"],
-    "travel": ["travel"],
-    "money": ["money"],
-    "finance": ["money"],
-    "security": ["security"],
-    "math": ["math"],
-    "science": ["physics", "chemistry", "biology"],
-    "gaming": ["gaming"],
-    "workplace": ["workplace"],
-    "career": ["workplace"],
-    "diy": ["diy"],
-    "photo": ["photo"],
-}
+SITE_PROFILES: list[TopicProfile] = [
+    TopicProfile("stackoverflow", [
+        "programming", "code", "coding", "software", "developer",
+        "python", "javascript", "typescript", "java", "c++", "c#",
+        "rust", "go", "golang", "ruby", "php", "swift", "kotlin",
+        "react", "angular", "vue", "node", "django", "flask",
+        "api", "database", "sql", "git", "docker", "kubernetes",
+        "bug", "error", "exception", "debug",
+        "algorithm", "data structure", "regex",
+    ]),
+    TopicProfile("serverfault", [
+        "server", "sysadmin", "system admin", "devops", "nginx",
+        "apache", "dns", "ssl", "networking",
+    ]),
+    TopicProfile("unix", [
+        "linux", "unix", "bash", "shell", "terminal", "command line",
+        "ubuntu", "debian", "fedora", "arch linux",
+    ]),
+    TopicProfile("askubuntu", ["ubuntu", "apt", "snap", "gnome"]),
+    TopicProfile("superuser", [
+        "computer", "pc", "windows", "mac", "hardware", "bios",
+        "driver", "disk", "partition", "keyboard", "mouse", "monitor",
+        "headphone", "speaker", "usb", "bluetooth", "wifi",
+        "laptop", "desktop",
+    ]),
+    TopicProfile("hardwarerecs", [
+        "recommend", "recommendation", "best", "which",
+        "keyboard", "mouse", "monitor", "laptop", "headphone",
+        "hardware", "device", "gadget", "peripheral",
+    ]),
+    TopicProfile("fitness", [
+        "fitness", "gym", "workout", "exercise", "muscle",
+        "weight loss", "bodybuilding", "nutrition",
+    ]),
+    TopicProfile("health", [
+        "health", "medical", "symptom", "disease", "vitamin",
+    ]),
+    TopicProfile("cooking", [
+        "cooking", "recipe", "baking", "food", "kitchen", "ingredient",
+    ]),
+    TopicProfile("travel", [
+        "travel", "flight", "visa", "passport", "airport",
+    ]),
+    TopicProfile("money", [
+        "money", "finance", "tax", "investment", "budget", "saving",
+        "retirement", "mortgage", "insurance",
+    ]),
+    TopicProfile("security", [
+        "security", "cybersecurity", "encryption", "vulnerability",
+        "password", "authentication", "hacking",
+    ]),
+    TopicProfile("math", [
+        "math", "mathematics", "calculus", "algebra", "statistics",
+        "probability", "geometry", "proof",
+    ]),
+    TopicProfile("physics", ["physics", "quantum", "mechanics", "relativity"]),
+    TopicProfile("gaming", [
+        "gaming", "video game", "game", "steam", "achievement",
+    ]),
+    TopicProfile("workplace", [
+        "workplace", "career", "job", "office", "manager",
+        "coworker", "promotion", "salary negotiation",
+    ]),
+    TopicProfile("diy", [
+        "diy", "home improvement", "woodworking", "plumbing", "electrical",
+    ]),
+    TopicProfile("photo", [
+        "photography", "photo", "camera", "exposure", "lighting",
+    ]),
+]
 
 
 class StackExchangeProvider(Provider):
@@ -56,6 +107,7 @@ class StackExchangeProvider(Provider):
 
     name = "stackexchange"
     supports_time_filter = True
+    supports_threads = True
 
     def __init__(self, api_key: str | None = None) -> None:
         self._api_key = api_key
@@ -75,7 +127,10 @@ class StackExchangeProvider(Provider):
         all_results: list[OpinionResult] = []
         errors: list[str] = []
 
-        for site in sites[:3]:
+        # When routing is confident, search up to 3 targeted sites.
+        # When falling back, cast a wider net across more sites.
+        max_sites = 3 if len(sites) <= 5 else 6
+        for site in sites[:max_sites]:
             try:
                 results = await self._search_site(
                     query, site, limit=limit, time_range=time_range,
@@ -133,7 +188,7 @@ class StackExchangeProvider(Provider):
                 text=strip_html(ans.get("body", "")),
                 platform=f"stackexchange/{site}",
                 url=ans.get("link", ""),
-                author=ans.get("owner", {}).get("display_name", ""),
+                author=html_mod.unescape(ans.get("owner", {}).get("display_name", "")),
                 score=safe_int(ans.get("score")),
                 created_at=str(ans.get("creation_date", "")),
             )
@@ -150,10 +205,13 @@ class StackExchangeProvider(Provider):
         limit: int = 10,
         time_range: TimeRange = TimeRange.ALL,
     ) -> list[OpinionResult]:
+        # Optimize long queries — SE's search API works best with 5-10 terms
+        search_q = optimize_query(query, max_terms=8)
+
         params: dict[str, Any] = {
             "order": "desc",
             "sort": "relevance",
-            "intitle": query,
+            "q": search_q,
             "site": site,
             "pagesize": min(limit, 100),
         }
@@ -168,7 +226,7 @@ class StackExchangeProvider(Provider):
             params["todate"] = before
 
         async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
-            resp = await client.get(f"{_BASE}/search", params=params)
+            resp = await client.get(f"{_BASE}/search/excerpts", params=params)
             resp.raise_for_status()
             data = resp.json()
 
@@ -181,14 +239,24 @@ class StackExchangeProvider(Provider):
             else:
                 created_at = str(created)
 
+            # search/excerpts returns both questions and answers
+            title = strip_html(item.get("title", ""))
+            excerpt = strip_html(item.get("excerpt", ""))
+            text = f"{title}\n{excerpt}".strip() if excerpt else title
+
+            question_id = item.get("question_id", "")
+            link = f"https://{site}.stackexchange.com/q/{question_id}" if question_id else ""
+            if site == "stackoverflow":
+                link = f"https://stackoverflow.com/q/{question_id}" if question_id else ""
+
             results.append(
                 OpinionResult(
-                    text=strip_html(item.get("title", "")),
+                    text=text,
                     platform=f"stackexchange/{site}",
-                    url=item.get("link", ""),
-                    author=item.get("owner", {}).get("display_name", ""),
+                    url=link,
+                    author="",
                     score=safe_int(item.get("score")),
-                    num_replies=safe_int(item.get("answer_count")),
+                    num_replies=safe_int(item.get("answer_count", 0)),
                     created_at=created_at,
                     metadata={
                         "is_answered": item.get("is_answered", False),
@@ -200,16 +268,21 @@ class StackExchangeProvider(Provider):
 
         return results
 
+    # Broad fallback: search the most popular SE sites when routing
+    # can't confidently pick. This ensures niche queries (math, physics,
+    # cooking, etc.) still find results even without keyword matches.
+    _FALLBACK_SITES = [
+        "stackoverflow", "superuser", "math",
+        "serverfault", "unix", "fitness",
+        "money", "cooking", "travel", "workplace",
+        "security", "gaming", "diy", "physics",
+    ]
+
     @staticmethod
     def _route_sites(query: str) -> list[str]:
-        query_lower = query.lower()
-        sites: list[str] = []
-        for keyword, site_list in SITE_ROUTES.items():
-            if keyword in query_lower:
-                for s in site_list:
-                    if s not in sites:
-                        sites.append(s)
-        return sites if sites else ["stackoverflow"]
+        """Score query against SE site profiles, return best matches."""
+        sites = score_route(query, SITE_PROFILES, min_score=0.5, max_results=3)
+        return sites if sites else StackExchangeProvider._FALLBACK_SITES
 
     async def health_check(self) -> bool:
         try:
