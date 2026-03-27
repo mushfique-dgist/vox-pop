@@ -24,6 +24,7 @@ from vox_pop.providers.base import (
     SearchResults,
     TimeRange,
     TopicProfile,
+    optimize_query,
     relevance_filter,
     safe_int,
     score_route,
@@ -279,16 +280,22 @@ class RedditProvider(Provider):
         *,
         limit: int = 10,
         subreddit: str | None = None,
+        subreddits: list[str] | None = None,
         time_range: TimeRange = TimeRange.ALL,
         **kwargs: Any,
     ) -> SearchResults:
-        # Auto-route to relevant subreddits if none specified
-        subreddits = [subreddit] if subreddit else self._route_subreddits(query)
+        # Accept both singular and plural forms; router passes plural
+        if subreddits:
+            _subs = subreddits
+        elif subreddit:
+            _subs = [subreddit]
+        else:
+            _subs = self._route_subreddits(query)
 
         all_results: list[OpinionResult] = []
         last_error: str | None = None
 
-        for sub in subreddits[:3]:
+        for sub in _subs[:3]:
             # Try Pullpush first (best for broad search)
             result = await self._pullpush_search(
                 query, limit=limit, subreddit=sub, time_range=time_range,
@@ -309,7 +316,7 @@ class RedditProvider(Provider):
             last_error = result.error
 
         # If no subreddit-scoped results, try Pullpush without subreddit
-        if not all_results and not subreddit:
+        if not all_results and not _subs:
             result = await self._pullpush_search(
                 query, limit=limit, subreddit=None, time_range=time_range,
             )
@@ -320,7 +327,7 @@ class RedditProvider(Provider):
 
         # If still nothing and no routes matched, try Arctic Shift
         # with broad subreddits as a safety net
-        if not all_results and not subreddits:
+        if not all_results and not _subs:
             for fallback_sub in _FALLBACK_SUBREDDITS:
                 result = await self._arctic_search(
                     query, limit=limit, subreddit=fallback_sub,
@@ -332,7 +339,7 @@ class RedditProvider(Provider):
 
         # Last resort: try Redlib (works without subreddit scope)
         if not all_results:
-            for sub in (subreddits[:2] if subreddits else [""]):
+            for sub in (_subs[:2] if _subs else [""]):
                 result = await self._redlib_search(
                     query, limit=limit, subreddit=sub, time_range=time_range,
                 )
@@ -373,7 +380,8 @@ class RedditProvider(Provider):
         subreddit: str | None = None,
         time_range: TimeRange = TimeRange.ALL,
     ) -> SearchResults:
-        params: dict[str, Any] = {"q": query, "size": min(limit * 2, 100)}
+        search_q = optimize_query(query, max_terms=8)
+        params: dict[str, Any] = {"q": search_q, "size": min(limit * 2, 100)}
         if subreddit:
             params["subreddit"] = subreddit
 
@@ -406,8 +414,9 @@ class RedditProvider(Provider):
         subreddit: str = "",
         time_range: TimeRange = TimeRange.ALL,
     ) -> SearchResults:
+        search_q = optimize_query(query, max_terms=8)
         params: dict[str, Any] = {
-            "query": query,
+            "query": search_q,
             "subreddit": subreddit,
             "limit": min(limit * 2, 100),
         }
