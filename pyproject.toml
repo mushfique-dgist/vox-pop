@@ -11,12 +11,16 @@ license = "MIT"
 requires-python = ">=3.10"
 authors = [{ name = "Mushfique" }]
 keywords = [
-    "llm",
     "mcp",
+    "mcp-server",
+    "model-context-protocol",
+    "llm",
     "public-opinion",
     "hackernews",
     "reddit",
     "4chan",
+    "stack-exchange",
+    "semantic-search",
     "sentiment",
     "context",
 ]
