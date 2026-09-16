@@ -29,6 +29,7 @@ from vox_pop.providers.base import (
     TopicProfile,
     score_route,
     strip_html,
+    keyword_query,
 )
 
 _BASE = "https://lemmy.world/api/v3"
@@ -178,7 +179,7 @@ class LemmyProvider(Provider):
     ) -> list[OpinionResult]:
         """Search Lemmy via REST API."""
         params: dict[str, Any] = {
-            "q": query,
+            "q": keyword_query(query),
             "type_": "Posts",
             "sort": "TopAll",
             "limit": min(limit, 50),

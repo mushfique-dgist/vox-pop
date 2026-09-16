@@ -68,7 +68,12 @@ def main(argv: list[str] | None = None) -> None:
     )
 
     # ── platforms ────────────────────────────────────────────────
-    sub.add_parser("platforms", help="List available platforms")
+    p_plat = sub.add_parser("platforms", help="List available platforms")
+    p_plat.add_argument(
+        "--check",
+        action="store_true",
+        help="Probe every platform against live endpoints and report status",
+    )
 
     args = parser.parse_args(argv)
 
@@ -77,7 +82,10 @@ def main(argv: list[str] | None = None) -> None:
     elif args.command == "thread":
         asyncio.run(_cmd_thread(args))
     elif args.command == "platforms":
-        _cmd_platforms()
+        if getattr(args, "check", False):
+            _cmd_platforms_check()
+        else:
+            _cmd_platforms()
     else:
         parser.print_help()
         sys.exit(1)
@@ -173,3 +181,37 @@ def _resolve_providers(platforms_str: str) -> list:
 
 if __name__ == "__main__":
     main()
+
+
+def _cmd_platforms_check() -> None:
+    """Probe every provider against its live endpoint and print real status."""
+    import asyncio
+
+    from vox_pop.core import get_provider, list_providers
+
+    probe_query = "programming language"
+
+    async def probe(name: str) -> tuple[str, int, str]:
+        try:
+            res = await asyncio.wait_for(
+                get_provider(name).search(probe_query, limit=3), timeout=45
+            )
+            return name, len(res.results), res.error or ""
+        except Exception as exc:  # noqa: BLE001 - surfacing any failure is the point
+            return name, 0, f"{type(exc).__name__}: {exc}"
+
+    async def run() -> list[tuple[str, int, str]]:
+        return list(await asyncio.gather(*[probe(n) for n in list_providers()]))
+
+    results = asyncio.run(run())
+    working = 0
+    for name, count, err in results:
+        if count:
+            working += 1
+            print(f"  OK       {name:<15} {count} results")
+        elif err:
+            print(f"  BLOCKED  {name:<15} {err[:70]}")
+        else:
+            print(f"  EMPTY    {name:<15} no results, no error reported")
+    print()
+    print(f"{working}/{len(results)} platforms returning results")

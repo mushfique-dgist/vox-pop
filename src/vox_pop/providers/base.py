@@ -246,6 +246,35 @@ def optimize_query(query: str, *, max_terms: int = 8) -> str:
     return " ".join(words[:max_terms])
 
 
+def keyword_query(query: str, *, max_terms: int = 8) -> str:
+    """Reduce a query to bare keywords for strict search engines.
+
+    Unlike ``optimize_query``, this strips stopwords at *any* length.
+    Engines like Lemmy do literal matching, so "best programming language
+    for beginners" returns nothing while "programming language beginners"
+    returns results. Falls back to the original query if nothing survives.
+    """
+    keywords = extract_query_keywords(query)
+    if not keywords:
+        return query
+    return " ".join(list(keywords)[:max_terms])
+
+
+_CHALLENGE_MARKERS = (
+    "making sure you're not a bot",
+    "making sure you&#39;re not a bot",
+    "anubis",
+    "checking your browser",
+    "enable javascript and cookies",
+)
+
+
+def is_bot_challenge(body: str) -> bool:
+    """Detect a proof-of-work / bot-interstitial page served instead of content."""
+    low = body[:4000].lower()
+    return any(m in low for m in _CHALLENGE_MARKERS)
+
+
 def relevance_filter(
     results: list[OpinionResult],
     query: str,

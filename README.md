@@ -168,19 +168,26 @@ asyncio.run(main())
 
 ## Platforms
 
-Every platform works out of the box. No tokens, no OAuth, no rate limit headaches.
+No tokens, no OAuth, no rate-limit headaches. Status is measured, not aspirational —
+`vox-pop platforms --check` re-runs this against live endpoints.
 
-| | Platform | Source | Time Filter | Threads |
-|:---:|---|---|:---:|:---:|
-| ![HN](https://img.shields.io/badge/Y-FF6600?style=flat-square) | **HackerNews** | [Algolia Search API](https://hn.algolia.com/api) | Yes | Yes |
-| ![Reddit](https://img.shields.io/badge/r/-FF4500?style=flat-square) | **Reddit** | [Pullpush](https://pullpush.io) + [Arctic Shift](https://arctic-shift.photon-reddit.com) + [Redlib](https://github.com/redlib-org/redlib) fallback | Yes | &mdash; |
-| ![4chan](https://img.shields.io/badge/4-008000?style=flat-square) | **4chan** | [Official JSON API](https://github.com/4chan/4chan-API) (since 2012) | &mdash; | Yes |
-| ![SE](https://img.shields.io/badge/SE-F48024?style=flat-square) | **Stack Exchange** | [Official API](https://api.stackexchange.com/docs) &mdash; 180+ communities | Yes | Yes |
-| ![TG](https://img.shields.io/badge/TG-26A5E4?style=flat-square) | **Telegram** | Public channel web preview (`t.me/s/`) | &mdash; | &mdash; |
-| ![Lobsters](https://img.shields.io/badge/L-AC0000?style=flat-square) | **Lobsters** | [lobste.rs](https://lobste.rs) JSON API + search scraping | Yes | &mdash; |
-| ![Lemmy](https://img.shields.io/badge/LE-00BC8C?style=flat-square) | **Lemmy** | [Public REST API](https://join-lemmy.org/api/) &mdash; federated instances | Yes | Yes |
-| ![LW](https://img.shields.io/badge/LW-5F9B65?style=flat-square) | **LessWrong** | [GraphQL API](https://www.lesswrong.com/graphql) | Yes | Yes |
-| ![Forums](https://img.shields.io/badge/XF-E7700D?style=flat-square) | **XenForo Forums** | HTML scraping (Head-Fi, AnandTech, etc.) | &mdash; | &mdash; |
+> **Reddit and Lobsters are currently blocked.** Both sit behind Anubis
+> proof-of-work interstitials that serve a challenge page instead of content.
+> This is not a configuration issue and no header change defeats it. Reddit
+> support is being moved to the official OAuth API; Lobsters now reports the
+> block explicitly rather than returning an empty result.
+
+| | Platform | Status | Source | Time Filter | Threads |
+|:---:|---|:---:|---|:---:|:---:|
+| ![HN](https://img.shields.io/badge/Y-FF6600?style=flat-square) | **HackerNews** | Working | [Algolia Search API](https://hn.algolia.com/api) | Yes | Yes |
+| ![Reddit](https://img.shields.io/badge/r/-FF4500?style=flat-square) | **Reddit** | **Blocked** | [Pullpush](https://pullpush.io) + [Arctic Shift](https://arctic-shift.photon-reddit.com) + [Redlib](https://github.com/redlib-org/redlib) fallback | Yes | &mdash; |
+| ![4chan](https://img.shields.io/badge/4-008000?style=flat-square) | **4chan** | Working | [Official JSON API](https://github.com/4chan/4chan-API) (since 2012) | &mdash; | Yes |
+| ![SE](https://img.shields.io/badge/SE-F48024?style=flat-square) | **Stack Exchange** | Working | [Official API](https://api.stackexchange.com/docs) &mdash; 180+ communities | Yes | Yes |
+| ![TG](https://img.shields.io/badge/TG-26A5E4?style=flat-square) | **Telegram** | Recent only | Public channel web preview (`t.me/s/`) | &mdash; | &mdash; |
+| ![Lobsters](https://img.shields.io/badge/L-AC0000?style=flat-square) | **Lobsters** | **Blocked** | [lobste.rs](https://lobste.rs) JSON API + search scraping | Yes | &mdash; |
+| ![Lemmy](https://img.shields.io/badge/LE-00BC8C?style=flat-square) | **Lemmy** | Working | [Public REST API](https://join-lemmy.org/api/) &mdash; federated instances | Yes | Yes |
+| ![LW](https://img.shields.io/badge/LW-5F9B65?style=flat-square) | **LessWrong** | Working | [GraphQL API](https://www.lesswrong.com/graphql) | Yes | Yes |
+| ![Forums](https://img.shields.io/badge/XF-E7700D?style=flat-square) | **XenForo Forums** | Flaky | HTML scraping (Head-Fi, AnandTech, etc.) | &mdash; | &mdash; |
 
 <br>
 
@@ -340,9 +347,8 @@ Each provider implements **automatic fallback** — if one source is down, the n
 |:---:|:---:|---|
 | **v0.1** | Shipped | 5 providers (HN, Reddit, 4chan, SE, Telegram), MCP server, Claude Code plugin |
 | **v0.2** | **Current** | 9 providers, 4-tier smart routing, LLM query rewriting, FastEmbed semantic routing, dynamic catalog |
-| **v0.3** | Next | **Regional** — DC Inside (Korea), Naver, 5ch (Japan) |
-| **v0.4** | Planned | **Niche** — TikTok, Discord, YouTube comments, Looksmax |
-| **v1.0** | Planned | **Synthesis** — built-in consensus/controversy detection, confidence scores, trend tracking |
+| **v0.3** | In progress | **Reddit via official OAuth API** — replaces the blocked Redlib path |
+| **v0.4** | Not started | **Regional** — DC Inside (Korea), Naver, 5ch (Japan) |
 
 <br>
 

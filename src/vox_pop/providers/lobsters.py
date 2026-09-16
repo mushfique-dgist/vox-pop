@@ -27,6 +27,7 @@ from vox_pop.providers.base import (
     SearchResults,
     TimeRange,
     strip_html,
+    is_bot_challenge,
 )
 
 _BASE = "https://lobste.rs"
@@ -41,6 +42,10 @@ _SCORE_RE = re.compile(r'class="upvoter"[^>]*>(\d+)')
 _COMMENTS_RE = re.compile(r'href="(/s/[^"]+)"[^>]*>\s*(\d+)\s*comment')
 _BYLINE_RE = re.compile(r'class="u-author[^"]*"[^>]*>(.*?)</a>', re.DOTALL)
 _DATE_RE = re.compile(r'<time[^>]*datetime="([^"]+)"')
+
+
+class BotChallenge(RuntimeError):
+    """Raised when a bot-interstitial is served instead of content."""
 
 
 class LobstersProvider(Provider):
@@ -58,7 +63,18 @@ class LobstersProvider(Provider):
         time_range: TimeRange = TimeRange.ALL,
         **kwargs: Any,
     ) -> SearchResults:
-        results = await self._search_html(query, limit=limit)
+        try:
+            results = await self._search_html(query, limit=limit)
+        except BotChallenge:
+            return SearchResults(
+                platform=self.name,
+                query=query,
+                error=(
+                    "lobste.rs is behind a proof-of-work bot challenge (Anubis); "
+                    "HTML search is unavailable"
+                ),
+                time_range=time_range.value,
+            )
 
         return SearchResults(
             platform=self.name,
@@ -80,6 +96,9 @@ class LobstersProvider(Provider):
             )
             resp.raise_for_status()
             html = resp.text
+
+        if is_bot_challenge(html):
+            raise BotChallenge(url)
 
         return self._parse_stories_html(html, limit=limit)
 

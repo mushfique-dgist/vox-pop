@@ -103,9 +103,11 @@ class TelegramProvider(Provider):
         all_results: list[OpinionResult] = []
         errors: list[str] = []
 
+        scanned = 0
         for channel in channels[:5]:
             try:
                 msgs = await self._fetch_channel(channel)
+                scanned += len(msgs)
                 # Client-side filter by meaningful keywords
                 query_words = extract_query_keywords(query)
                 if not query_words:
@@ -123,6 +125,19 @@ class TelegramProvider(Provider):
                 platform=self.name,
                 query=query,
                 error="; ".join(errors),
+            )
+
+        if not all_results:
+            # t.me/s/ exposes only the most recent messages per channel, so a
+            # query rarely matches. Say so rather than returning a silent empty.
+            return SearchResults(
+                platform=self.name,
+                query=query,
+                error=(
+                    f"no match in the {scanned} most recent messages across "
+                    f"{len(channels[:5])} channel(s); the t.me web preview "
+                    "exposes only recent posts, not full history"
+                ),
             )
 
         return SearchResults(
