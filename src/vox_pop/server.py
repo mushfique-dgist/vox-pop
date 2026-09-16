@@ -11,7 +11,12 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from mcp.server.fastmcp import FastMCP
+# mcp 2.x renamed FastMCP -> MCPServer. Support both so the package works
+# on any installed SDK version.
+try:  # mcp >= 2.0
+    from mcp.server.mcpserver import MCPServer as _Server
+except ImportError:  # mcp 1.x
+    from mcp.server.fastmcp import FastMCP as _Server
 
 from vox_pop.core import (
     format_context,
@@ -25,7 +30,7 @@ from vox_pop.core import (
 )
 from vox_pop.providers.base import parse_routing_hints
 
-mcp = FastMCP(
+mcp = _Server(
     "vox-pop",
     instructions="Public opinion for LLMs — 9 platforms (HackerNews, Reddit, 4chan, Stack Exchange, Telegram, Lobsters, Lemmy, LessWrong, forums) with semantic routing. Optional LLM key improves routing.",
 )

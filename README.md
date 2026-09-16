@@ -1,11 +1,13 @@
+<!-- mcp-name: io.github.mushfique-dgist/vox-pop -->
+
 <div align="center">
 
 <br>
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="assets/logo-dark.svg">
-  <source media="(prefers-color-scheme: light)" srcset="assets/logo-light.svg">
-  <img alt="VOX-POP" src="assets/logo-dark.svg" width="420">
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/mushfique-dgist/vox-pop/master/assets/logo-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/mushfique-dgist/vox-pop/master/assets/logo-light.svg">
+  <img alt="VOX-POP" src="https://raw.githubusercontent.com/mushfique-dgist/vox-pop/master/assets/logo-dark.svg" width="420">
 </picture>
 
 ### Your LLM knows what textbooks say.<br>This tells it what people *actually* think.
@@ -191,23 +193,23 @@ User query: "i was looking into a solid laptop for linux
              something from hp, what would a savvy person pick"
                                     │
     ┌───────────────────────────────▼──────────────────────────────┐
-    │  Tier 1: MCP Hints                                          │
-    │  Calling LLM provides routing_hints directly                │
-    │  (skips all other tiers)                                    │
-    ├─────────────────────────────────────────────────────────────┤
-    │  Tier 2: LLM Query Rewrite          ← like Perplexity      │
-    │  Cheap LLM call rewrites query to search-optimized form     │
-    │  "hp laptop linux compatibility" + routes to communities    │
-    │  Supports: Anthropic, OpenAI, Ollama (local/free)           │
-    ├─────────────────────────────────────────────────────────────┤
-    │  Tier 3: Semantic Embeddings         ← free, no API key     │
-    │  FastEmbed (33MB model) understands meaning, not keywords   │
-    │  Dynamic catalog: 77 4chan boards + 180 SE sites + static   │
-    │  "contradictory spell behaviour" → SE:rpg, r/DnD, /tg/     │
-    ├─────────────────────────────────────────────────────────────┤
-    │  Tier 4: Broad Defaults                                     │
-    │  Search popular destinations everywhere                     │
-    └─────────────────────────────────────────────────────────────┘
+    │  Tier 1: MCP Hints                                           │
+    │  Calling LLM provides routing_hints directly                 │
+    │  (skips all other tiers)                                     │
+    ├──────────────────────────────────────────────────────────────┤
+    │  Tier 2: LLM Query Rewrite          ← like Perplexity        │
+    │  Cheap LLM call rewrites query to search-optimized form      │
+    │  "hp laptop linux compatibility" + routes to communities     │
+    │  Supports: Anthropic, OpenAI, Ollama (local/free)            │
+    ├──────────────────────────────────────────────────────────────┤
+    │  Tier 3: Semantic Embeddings         ← free, no API key      │
+    │  FastEmbed (33MB model) understands meaning, not keywords    │
+    │  Dynamic catalog: 77 4chan boards + 180 SE sites + static    │
+    │  "contradictory spell behaviour" → SE:rpg, r/DnD, /tg/       │
+    ├──────────────────────────────────────────────────────────────┤
+    │  Tier 4: Broad Defaults                                      │
+    │  Search popular destinations everywhere                      │
+    └──────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
     Routes to: r/buildapc, r/linux, r/hardware │ /g/
